@@ -42,3 +42,5 @@ class Alert(Base):
     resolved = Column(Boolean, nullable=False, default=False)
 
     machine = relationship("Machine", back_populates="alerts")
+
+

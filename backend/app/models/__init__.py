@@ -1,3 +1,6 @@
-from app.models.models import Machine, TelemetryLog, Alert
+from app.core.db import Base
+from app.models.machine import Machine
+from app.models.telemetry import TelemetryLog
+from app.models.alert import Alert
 
-__all__ = ["Machine", "TelemetryLog", "Alert"]
+__all__ = ["Base", "Machine", "TelemetryLog", "Alert"]
