@@ -3,7 +3,8 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 class TelemetryLogBase(BaseModel):
-    product_id: str
+    machine_id: str
+    product_id: Optional[str] = None
     air_temp_k: Optional[float] = None
     process_temp_k: Optional[float] = None
     rpm: Optional[int] = None

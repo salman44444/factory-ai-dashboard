@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1.router import api_router
+from app.core.websocket import manager as websocket_manager
 
 tags_metadata = [
     {
@@ -48,6 +49,18 @@ app.add_middleware(
 # Include API Router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+@app.websocket("/ws/live-data")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket_manager.connect(websocket)
+    try:
+        while True:
+            # Wait for any message from the client to keep connection open
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        websocket_manager.disconnect(websocket)
+    except Exception:
+        websocket_manager.disconnect(websocket)
+
 @app.get("/", summary="API Root Info", tags=["Health"])
 def read_root():
     return {
@@ -57,3 +70,4 @@ def read_root():
         "redoc_url": settings.REDOC_URL,
         "api_v1": settings.API_V1_STR,
     }
+
