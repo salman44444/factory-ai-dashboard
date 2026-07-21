@@ -8,6 +8,7 @@ import urllib.error
 import pandas as pd
 from app.models.machine import Machine
 from app.models.telemetry import TelemetryLog
+from app.models.alert import Alert
 from app.core.db import SessionLocal
 
 def get_failure_reason(row) -> str | None:
@@ -92,7 +93,35 @@ class SimulatorManager:
                     active_session.add(machine)
                     active_session.commit()
 
-                # 4. Save to DB
+                # Anomaly detection and machine status update
+                status_to_set = "RUNNING"
+                has_alert = False
+                alert_severity = None
+                alert_reason = None
+
+                if record["is_failure"]:
+                    status_to_set = "FAULT"
+                    has_alert = True
+                    alert_severity = "CRITICAL"
+                    alert_reason = record["failure_reason"] or "Generic Machine Failure Detected"
+                elif record["torque_nm"] > 60:
+                    status_to_set = "WARNING"
+                    has_alert = True
+                    alert_severity = "MEDIUM"
+                    alert_reason = f"High Torque Anomaly: {record['torque_nm']:.1f} Nm exceeds threshold of 60.0 Nm"
+                elif record["tool_wear_min"] > 200:
+                    status_to_set = "WARNING"
+                    has_alert = True
+                    alert_severity = "LOW"
+                    alert_reason = f"Tool Wear Warning: {record['tool_wear_min']} min exceeds threshold of 200 min"
+
+                # Update machine status if it changed
+                if machine.status != status_to_set:
+                    machine.status = status_to_set
+                    active_session.add(machine)
+                    active_session.commit()
+
+                # 4. Save telemetry log to DB
                 db_obj = TelemetryLog(
                     product_id=record["product_id"],
                     air_temp_k=record["air_temp_k"],
@@ -108,24 +137,60 @@ class SimulatorManager:
                 active_session.commit()
                 active_session.refresh(db_obj)
 
+                # Save alert to DB if triggered
+                alert_obj = None
+                if has_alert:
+                    alert_obj = Alert(
+                        machine_id=record["product_id"],
+                        timestamp=current_time,
+                        severity=alert_severity,
+                        reason=alert_reason,
+                        resolved=False
+                    )
+                    active_session.add(alert_obj)
+                    active_session.commit()
+                    active_session.refresh(alert_obj)
+
                 # 5. Broadcast via WebSocket if available
                 if websocket_manager:
-                    serialized_data = {
-                        "id": db_obj.id,
-                        "product_id": db_obj.product_id,
-                        "air_temp_k": db_obj.air_temp_k,
-                        "process_temp_k": db_obj.process_temp_k,
-                        "rpm": db_obj.rpm,
-                        "torque_nm": db_obj.torque_nm,
-                        "tool_wear_min": db_obj.tool_wear_min,
-                        "is_failure": db_obj.is_failure,
-                        "failure_reason": db_obj.failure_reason,
-                        "timestamp": db_obj.timestamp.isoformat() if db_obj.timestamp else None
+                    # Broadcast telemetry event
+                    telemetry_payload = {
+                        "event_type": "telemetry",
+                        "data": {
+                            "id": str(db_obj.id),
+                            "product_id": db_obj.product_id,
+                            "air_temp_k": db_obj.air_temp_k,
+                            "process_temp_k": db_obj.process_temp_k,
+                            "rpm": db_obj.rpm,
+                            "torque_nm": db_obj.torque_nm,
+                            "tool_wear_min": db_obj.tool_wear_min,
+                            "is_failure": db_obj.is_failure,
+                            "failure_reason": db_obj.failure_reason,
+                            "timestamp": db_obj.timestamp.isoformat() if db_obj.timestamp else None
+                        }
                     }
                     if hasattr(websocket_manager, "broadcast"):
-                        await websocket_manager.broadcast(serialized_data)
+                        await websocket_manager.broadcast(telemetry_payload)
                     elif hasattr(websocket_manager, "send_json"):
-                        await websocket_manager.send_json(serialized_data)
+                        await websocket_manager.send_json(telemetry_payload)
+
+                    # Broadcast alert event
+                    if has_alert and alert_obj:
+                        alert_payload = {
+                            "event_type": "alert",
+                            "data": {
+                                "id": str(alert_obj.id),
+                                "machine_id": alert_obj.machine_id,
+                                "severity": alert_obj.severity,
+                                "reason": alert_obj.reason,
+                                "resolved": alert_obj.resolved,
+                                "timestamp": alert_obj.timestamp.isoformat() if alert_obj.timestamp else None
+                            }
+                        }
+                        if hasattr(websocket_manager, "broadcast"):
+                            await websocket_manager.broadcast(alert_payload)
+                        elif hasattr(websocket_manager, "send_json"):
+                            await websocket_manager.send_json(alert_payload)
             except Exception as e:
                 # Rollback session on error to avoid broken transactions
                 try:
@@ -137,6 +202,7 @@ class SimulatorManager:
                 # Close the session if we created it locally
                 if db_session is None:
                     active_session.close()
+
 
             await asyncio.sleep(1.0)
 
