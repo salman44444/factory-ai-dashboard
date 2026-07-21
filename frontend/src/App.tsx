@@ -74,7 +74,7 @@ export default function App() {
       setLoadingHistory(true);
       try {
         // Fetch last 50 logs for this machine
-        const res = await fetch(`/api/v1/telemetry/product/${selectedMachineId}?limit=50`);
+        const res = await fetch(`/api/v1/telemetry/machine/${selectedMachineId}?limit=50`);
         const data = await res.json();
         // Sort historical data ascending for chart plotting (oldest first)
         const sorted = data.reverse();
@@ -94,7 +94,7 @@ export default function App() {
     if (!selectedMachineId) return [];
 
     // Filter incoming WS logs belonging to this machine
-    const wsFiltered = telemetryLogs.filter(log => log.product_id === selectedMachineId);
+    const wsFiltered = telemetryLogs.filter(log => log.machine_id === selectedMachineId);
     
     // Merge history and ws logs, ensuring no duplicates by ID
     const mergedMap = new Map<string, TelemetryLog>();
@@ -357,10 +357,14 @@ export default function App() {
               Diagnostics Context
             </h3>
             {selectedMachine ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-xs">
                 <div className="bg-white/5 p-3 rounded-xl border border-white/5">
                   <span className="text-gray-500 block">System Name</span>
                   <span className="font-bold text-gray-300 block mt-1">{selectedMachine.name}</span>
+                </div>
+                <div className="bg-white/5 p-3 rounded-xl border border-white/5">
+                  <span className="text-gray-500 block">Current Product</span>
+                  <span className="font-bold text-purple-400 block mt-1">{currentMetrics?.product_id || 'None'}</span>
                 </div>
                 <div className="bg-white/5 p-3 rounded-xl border border-white/5">
                   <span className="text-gray-500 block">Class Category</span>

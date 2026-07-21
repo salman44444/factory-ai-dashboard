@@ -7,7 +7,8 @@ class TelemetryLog(Base):
     __tablename__ = "telemetry_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    product_id = Column(String(50), ForeignKey("machines.id", ondelete="CASCADE"), nullable=False)
+    machine_id = Column(String(50), ForeignKey("machines.id", ondelete="CASCADE"), nullable=False)
+    product_id = Column(String(50), nullable=True)
     air_temp_k = Column(Float, nullable=True)
     process_temp_k = Column(Float, nullable=True)
     rpm = Column(Integer, nullable=True)

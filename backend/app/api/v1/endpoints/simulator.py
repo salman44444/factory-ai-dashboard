@@ -1,11 +1,12 @@
 import datetime
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from app.simulator import simulator_instance
+from app.simulator import simulator_instance, get_failure_reason
 from app.core.websocket import manager as websocket_manager
 from app.api.deps import get_db_session
 from app.models.machine import Machine
 from app.models.telemetry import TelemetryLog
+from app.models.alert import Alert
 
 router = APIRouter()
 
@@ -28,18 +29,22 @@ async def get_simulator_status():
 
 @router.delete("/reset", summary="Reset Simulator Data")
 async def reset_simulator_data(db: Session = Depends(get_db_session)):
-    """Stops the simulator (if running), resets index to 0, and deletes all telemetry logs."""
+    """Stops the simulator (if running), resets index to 0, and deletes all alerts, telemetry logs, and machines."""
     # Stop the running background task safely first
     simulator_instance.stop()
     simulator_instance.current_index = 0
     
-    # Delete all telemetry logs from database
-    num_deleted = db.query(TelemetryLog).delete()
+    # Delete all alerts, telemetry logs, and machines from database
+    num_alerts_deleted = db.query(Alert).delete()
+    num_telemetry_deleted = db.query(TelemetryLog).delete()
+    num_machines_deleted = db.query(Machine).delete()
     db.commit()
     
     return {
         "status": "Simulator reset successful",
-        "deleted_records_count": num_deleted
+        "deleted_records_count": num_telemetry_deleted,
+        "deleted_machines_count": num_machines_deleted,
+        "deleted_alerts_count": num_alerts_deleted
     }
 
 @router.get("/data", summary="Fetch Simulator CSV Data")
@@ -60,57 +65,56 @@ async def delete_telemetry_data(db: Session = Depends(get_db_session)):
 
 @router.post("/load", summary="Bulk Load All CSV Data")
 async def load_all_csv_data(db: Session = Depends(get_db_session)):
-    """Bulk-loads the entire CSV dataset (10,000 records) into the database, creating machines as needed."""
-    # Ensure data is loaded from CSV
-    simulator_instance._ensure_records_loaded()
+    """Bulk-loads the entire CSV dataset sliced across the 3 simulator machines into the database."""
+    simulator_instance._ensure_data_loaded()
     
-    # 1. Extract unique machine IDs and types
-    unique_machines = {}
-    for record in simulator_instance.records:
-        pid = record["product_id"]
-        mtype = record.get("type", "M")
-        if pid not in unique_machines:
-            unique_machines[pid] = mtype
-
-    # 2. Query existing machine IDs
-    existing_machine_ids = {m[0] for m in db.query(Machine.id).filter(Machine.id.in_(list(unique_machines.keys()))).all()}
+    # 1. Define the 3 simulator machines
+    machines_to_create = [
+        {"id": "CNC-01", "name": "CNC-01", "type": "M", "status": "OFFLINE"},
+        {"id": "CNC-02", "name": "CNC-02", "type": "L", "status": "OFFLINE"},
+        {"id": "CNC-03", "name": "CNC-03", "type": "H", "status": "OFFLINE"},
+    ]
     
-    # 3. Prepare new machines list and bulk insert them
-    new_machines_mappings = []
-    for pid, mtype in unique_machines.items():
-        if pid not in existing_machine_ids:
-            new_machines_mappings.append({
-                "id": pid,
-                "name": f"Machine {pid}",
-                "type": mtype,
-                "status": "OFFLINE"
-            })
-            
-    if new_machines_mappings:
-        db.bulk_insert_mappings(Machine, new_machines_mappings)
-        db.commit()
+    # Create them if they don't exist
+    for m_data in machines_to_create:
+        existing = db.query(Machine).filter(Machine.id == m_data["id"]).first()
+        if not existing:
+            new_m = Machine(**m_data)
+            db.add(new_m)
+    db.commit()
 
-    # 4. Prepare telemetry logs mapping and bulk insert them
+    # 2. Slice and load the data
     current_time = datetime.datetime.utcnow()
     telemetry_mappings = []
-    for record in simulator_instance.records:
-        telemetry_mappings.append({
-            "product_id": record["product_id"],
-            "air_temp_k": record["air_temp_k"],
-            "process_temp_k": record["process_temp_k"],
-            "rpm": record["rpm"],
-            "torque_nm": record["torque_nm"],
-            "tool_wear_min": record["tool_wear_min"],
-            "is_failure": record["is_failure"],
-            "failure_reason": record["failure_reason"],
-            "timestamp": current_time
-        })
     
-    # Perform ultra-fast bulk insert for telemetry
-    db.bulk_insert_mappings(TelemetryLog, telemetry_mappings)
-    db.commit()
+    # We slice chunks exactly like in the simulator
+    chunks = {
+        "CNC-01": simulator_instance.chunks["CNC-01"],
+        "CNC-02": simulator_instance.chunks["CNC-02"],
+        "CNC-03": simulator_instance.chunks["CNC-03"]
+    }
     
+    for machine_id, chunk_df in chunks.items():
+        for _, row in chunk_df.iterrows():
+            telemetry_mappings.append({
+                "machine_id": machine_id,
+                "product_id": str(row["Product ID"]),
+                "air_temp_k": float(row["Air temperature [K]"]),
+                "process_temp_k": float(row["Process temperature [K]"]),
+                "rpm": int(row["Rotational speed [rpm]"]),
+                "torque_nm": float(row["Torque [Nm]"]),
+                "tool_wear_min": int(row["Tool wear [min]"]),
+                "is_failure": bool(row["Machine failure"] == 1),
+                "failure_reason": get_failure_reason(row),
+                "timestamp": current_time
+            })
+            
+    # Perform bulk insert for telemetry
+    if telemetry_mappings:
+        db.bulk_insert_mappings(TelemetryLog, telemetry_mappings)
+        db.commit()
+        
     return {
         "status": "Success",
-        "message": f"Successfully created/verified machines and loaded all {len(telemetry_mappings)} telemetry records."
+        "message": f"Successfully created/verified CNC machines and loaded all {len(telemetry_mappings)} telemetry records."
     }

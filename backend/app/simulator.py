@@ -57,37 +57,43 @@ def load_csv(path: str):
 class SimulatorManager:
     def __init__(self):
         self.is_running = False
-        self.task = None
+        self.tasks = []
+        self.df = None
+        self.chunks = {}
+        self.current_indices = {"CNC-01": 0, "CNC-02": 0, "CNC-03": 0}
         self.records = []
-        self.current_index = 0
 
     def _ensure_records_loaded(self):
-        if not self.records:
+        self._ensure_data_loaded()
+
+    def _ensure_data_loaded(self):
+        if self.df is None or not self.records:
             csv_path = find_csv_path()
-            self.records = load_csv(csv_path)
+            self.df = pd.read_csv(csv_path)
+            # Slice the 10,000 rows into 3 distinct chunks
+            self.chunks["CNC-01"] = self.df.iloc[0:3000].copy()
+            self.chunks["CNC-02"] = self.df.iloc[3000:6000].copy()
+            self.chunks["CNC-03"] = self.df.iloc[6000:9000].copy()
+            self.records = [row_to_json(row) for _, row in self.df.iterrows()]
 
-    async def _stream_loop(self, db_session=None, websocket_manager=None):
-        """The actual loop reading CSV rows and broadcasting them."""
-        self._ensure_records_loaded()
-        
-        while self.is_running and self.records:
-            # 1. Fetch next row from CSV / DataFrame
-            record = self.records[self.current_index]
-            self.current_index = (self.current_index + 1) % len(self.records)
+    async def _stream_machine_loop(self, machine_id: str, df_chunk: pd.DataFrame, db_session=None, websocket_manager=None):
+        """Takes a chunk of the CSV and streams it as if it's a specific machine."""
+        while self.is_running:
+            idx = self.current_indices[machine_id]
+            row = df_chunk.iloc[idx]
+            self.current_indices[machine_id] = (idx + 1) % len(df_chunk)
 
-            # 2. Add current timestamp
             current_time = datetime.datetime.utcnow()
 
-            # Create or use active session
             active_session = db_session if db_session is not None else SessionLocal()
             try:
-                # 3. Ensure Machine exists
-                machine = active_session.query(Machine).filter(Machine.id == record["product_id"]).first()
+                # Ensure Machine exists
+                machine = active_session.query(Machine).filter(Machine.id == machine_id).first()
                 if not machine:
                     machine = Machine(
-                        id=record["product_id"],
-                        name=f"Machine {record['product_id']}",
-                        type=record.get("type", "M"),
+                        id=machine_id,
+                        name=machine_id,
+                        type=str(row.get("Type", "M")),
                         status="OFFLINE"
                     )
                     active_session.add(machine)
@@ -99,21 +105,24 @@ class SimulatorManager:
                 alert_severity = None
                 alert_reason = None
 
-                if record["is_failure"]:
+                is_failure = bool(row.get("Machine failure", 0))
+                failure_reason = get_failure_reason(row)
+
+                if is_failure:
                     status_to_set = "FAULT"
                     has_alert = True
                     alert_severity = "CRITICAL"
-                    alert_reason = record["failure_reason"] or "Generic Machine Failure Detected"
-                elif record["torque_nm"] > 60:
+                    alert_reason = failure_reason or "Generic Machine Failure Detected"
+                elif float(row["Torque [Nm]"]) > 60:
                     status_to_set = "WARNING"
                     has_alert = True
                     alert_severity = "MEDIUM"
-                    alert_reason = f"High Torque Anomaly: {record['torque_nm']:.1f} Nm exceeds threshold of 60.0 Nm"
-                elif record["tool_wear_min"] > 200:
+                    alert_reason = f"High Torque Anomaly: {float(row['Torque [Nm]']):.1f} Nm exceeds threshold of 60.0 Nm"
+                elif int(row["Tool wear [min]"]) > 200:
                     status_to_set = "WARNING"
                     has_alert = True
                     alert_severity = "LOW"
-                    alert_reason = f"Tool Wear Warning: {record['tool_wear_min']} min exceeds threshold of 200 min"
+                    alert_reason = f"Tool Wear Warning: {int(row['Tool wear [min]'])} min exceeds threshold of 200 min"
 
                 # Update machine status if it changed
                 if machine.status != status_to_set:
@@ -121,16 +130,17 @@ class SimulatorManager:
                     active_session.add(machine)
                     active_session.commit()
 
-                # 4. Save telemetry log to DB
+                # Save telemetry log to DB
                 db_obj = TelemetryLog(
-                    product_id=record["product_id"],
-                    air_temp_k=record["air_temp_k"],
-                    process_temp_k=record["process_temp_k"],
-                    rpm=record["rpm"],
-                    torque_nm=record["torque_nm"],
-                    tool_wear_min=record["tool_wear_min"],
-                    is_failure=record["is_failure"],
-                    failure_reason=record["failure_reason"],
+                    machine_id=machine_id,
+                    product_id=str(row["Product ID"]),
+                    air_temp_k=float(row["Air temperature [K]"]),
+                    process_temp_k=float(row["Process temperature [K]"]),
+                    rpm=int(row["Rotational speed [rpm]"]),
+                    torque_nm=float(row["Torque [Nm]"]),
+                    tool_wear_min=int(row["Tool wear [min]"]),
+                    is_failure=is_failure,
+                    failure_reason=failure_reason,
                     timestamp=current_time
                 )
                 active_session.add(db_obj)
@@ -141,7 +151,7 @@ class SimulatorManager:
                 alert_obj = None
                 if has_alert:
                     alert_obj = Alert(
-                        machine_id=record["product_id"],
+                        machine_id=machine_id,
                         timestamp=current_time,
                         severity=alert_severity,
                         reason=alert_reason,
@@ -151,13 +161,14 @@ class SimulatorManager:
                     active_session.commit()
                     active_session.refresh(alert_obj)
 
-                # 5. Broadcast via WebSocket if available
+                # Broadcast via WebSocket if available
                 if websocket_manager:
                     # Broadcast telemetry event
                     telemetry_payload = {
                         "event_type": "telemetry",
                         "data": {
                             "id": str(db_obj.id),
+                            "machine_id": db_obj.machine_id,
                             "product_id": db_obj.product_id,
                             "air_temp_k": db_obj.air_temp_k,
                             "process_temp_k": db_obj.process_temp_k,
@@ -191,32 +202,34 @@ class SimulatorManager:
                             await websocket_manager.broadcast(alert_payload)
                         elif hasattr(websocket_manager, "send_json"):
                             await websocket_manager.send_json(alert_payload)
+
             except Exception as e:
-                # Rollback session on error to avoid broken transactions
                 try:
                     active_session.rollback()
                 except Exception:
                     pass
-                print(f"Simulator error in streaming loop: {e}")
+                print(f"Simulator error in streaming loop for {machine_id}: {e}")
             finally:
-                # Close the session if we created it locally
                 if db_session is None:
                     active_session.close()
-
 
             await asyncio.sleep(1.0)
 
     def start(self, db_session=None, websocket_manager=None):
         if not self.is_running:
             self.is_running = True
-            # Spawn the async loop as a background task in FastAPI
-            self.task = asyncio.create_task(self._stream_loop(db_session, websocket_manager))
+            self._ensure_data_loaded()
+            self.tasks = [
+                asyncio.create_task(self._stream_machine_loop("CNC-01", self.chunks["CNC-01"], db_session, websocket_manager)),
+                asyncio.create_task(self._stream_machine_loop("CNC-02", self.chunks["CNC-02"], db_session, websocket_manager)),
+                asyncio.create_task(self._stream_machine_loop("CNC-03", self.chunks["CNC-03"], db_session, websocket_manager)),
+            ]
 
     def stop(self):
         self.is_running = False
-        if self.task:
-            self.task.cancel()
-            self.task = None
+        for task in self.tasks:
+            task.cancel()
+        self.tasks = []
 
 # Global instance to hold the simulator state
 simulator_instance = SimulatorManager()

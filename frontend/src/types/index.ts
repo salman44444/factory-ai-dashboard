@@ -8,6 +8,7 @@ export interface Machine {
 
 export interface TelemetryLog {
   id: string;
+  machine_id: string;
   product_id: string;
   air_temp_k: number;
   process_temp_k: number;
