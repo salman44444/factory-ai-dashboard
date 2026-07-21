@@ -1,5 +1,4 @@
 from typing import List
-from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.api.deps import get_db_session
@@ -22,11 +21,18 @@ def create_machine(
     db: Session = Depends(get_db_session)
 ):
     """Create a new machine record."""
+    # Check if machine already exists
+    existing = crud.machine.get(db, id=machine_in.id)
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Machine with product_id '{machine_in.id}' already exists."
+        )
     return crud.machine.create(db, obj_in=machine_in)
 
 @router.get("/{machine_id}", response_model=schemas.MachineResponse, summary="Get machine by ID")
 def read_machine(
-    machine_id: UUID,
+    machine_id: str,
     db: Session = Depends(get_db_session)
 ):
     """Get details of a specific machine."""

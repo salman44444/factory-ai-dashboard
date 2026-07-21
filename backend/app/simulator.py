@@ -6,6 +6,7 @@ import datetime
 import urllib.request
 import urllib.error
 import pandas as pd
+from app.models.machine import Machine
 from app.models.telemetry import TelemetryLog
 from app.core.db import SessionLocal
 
@@ -30,6 +31,7 @@ def row_to_json(row):
     is_failure = bool(row.get("Machine failure", 0))
     return {
         "product_id": str(row["Product ID"]),
+        "type": str(row["Type"]),
         "air_temp_k": float(row["Air temperature [K]"]),
         "process_temp_k": float(row["Process temperature [K]"]),
         "rpm": int(row["Rotational speed [rpm]"]),
@@ -78,7 +80,19 @@ class SimulatorManager:
             # Create or use active session
             active_session = db_session if db_session is not None else SessionLocal()
             try:
-                # 3. Save to DB
+                # 3. Ensure Machine exists
+                machine = active_session.query(Machine).filter(Machine.id == record["product_id"]).first()
+                if not machine:
+                    machine = Machine(
+                        id=record["product_id"],
+                        name=f"Machine {record['product_id']}",
+                        type=record.get("type", "M"),
+                        status="OFFLINE"
+                    )
+                    active_session.add(machine)
+                    active_session.commit()
+
+                # 4. Save to DB
                 db_obj = TelemetryLog(
                     product_id=record["product_id"],
                     air_temp_k=record["air_temp_k"],
@@ -94,7 +108,7 @@ class SimulatorManager:
                 active_session.commit()
                 active_session.refresh(db_obj)
 
-                # 4. Broadcast via WebSocket if available
+                # 5. Broadcast via WebSocket if available
                 if websocket_manager:
                     serialized_data = {
                         "id": db_obj.id,

@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import Optional
-from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 class MachineBase(BaseModel):
@@ -9,7 +8,7 @@ class MachineBase(BaseModel):
     status: Optional[str] = "OFFLINE"
 
 class MachineCreate(MachineBase):
-    pass
+    id: str  # The product ID string to be used as primary key
 
 class MachineUpdate(BaseModel):
     name: Optional[str] = None
@@ -17,7 +16,7 @@ class MachineUpdate(BaseModel):
     status: Optional[str] = None
 
 class MachineInDBBase(MachineBase):
-    id: UUID
+    id: str
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
