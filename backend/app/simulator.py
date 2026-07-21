@@ -203,6 +203,10 @@ class SimulatorManager:
                         elif hasattr(websocket_manager, "send_json"):
                             await websocket_manager.send_json(alert_payload)
 
+                if is_failure:
+                    print(f"Machine {machine_id} encountered a failure. Stopping simulation stream for this machine.")
+                    break
+
             except Exception as e:
                 try:
                     active_session.rollback()
@@ -235,7 +239,7 @@ class SimulatorManager:
 simulator_instance = SimulatorManager()
 
 # Legacy CLI support function if needed
-def stream_telemetry(csv_path: str = "ai4i2020.csv", api_url: str = "http://localhost:8000/api/v1/telemetry/", delay: float = 0.5, limit: int = None):
+def stream_telemetry(csv_path: str = "ai4i2020.csv", api_url: str = "http://localhost:8000/api/v1/telemetry/", delay: float = 1.0, limit: int = None):
     records = load_csv(csv_path)
     if limit:
         records = records[:limit]
