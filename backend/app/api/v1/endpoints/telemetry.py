@@ -1,5 +1,4 @@
 from typing import List
-from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from app.api.deps import get_db_session
@@ -7,15 +6,24 @@ from app import crud, schemas
 
 router = APIRouter()
 
-@router.get("/machine/{machine_id}", response_model=List[schemas.TelemetryLogResponse], summary="Get telemetry by machine")
-def read_telemetry_by_machine(
-    machine_id: UUID,
+@router.get("/", response_model=List[schemas.TelemetryLogResponse], summary="List telemetry logs")
+def read_telemetry_logs(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db_session)
 ):
-    """Retrieve telemetry logs for a specific machine."""
-    return crud.telemetry.get_by_machine(db, machine_id=machine_id, skip=skip, limit=limit)
+    """Retrieve telemetry logs with pagination."""
+    return crud.telemetry.get_multi(db, skip=skip, limit=limit)
+
+@router.get("/product/{product_id}", response_model=List[schemas.TelemetryLogResponse], summary="Get telemetry by product ID")
+def read_telemetry_by_product(
+    product_id: str,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db_session)
+):
+    """Retrieve telemetry logs for a specific product ID."""
+    return crud.telemetry.get_by_product(db, product_id=product_id, skip=skip, limit=limit)
 
 @router.post("/", response_model=schemas.TelemetryLogResponse, status_code=status.HTTP_201_CREATED, summary="Log telemetry data")
 def create_telemetry_log(

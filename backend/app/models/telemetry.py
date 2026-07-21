@@ -1,19 +1,17 @@
-import uuid
-from sqlalchemy import Column, Integer, Float, DateTime, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime
 from app.core.db import Base
 
 class TelemetryLog(Base):
     __tablename__ = "telemetry_logs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    machine_id = Column(UUID(as_uuid=True), ForeignKey("machines.id", ondelete="CASCADE"), nullable=False)
-    timestamp = Column(DateTime(timezone=True), nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(String, nullable=False)
     air_temp_k = Column(Float, nullable=True)
     process_temp_k = Column(Float, nullable=True)
     rpm = Column(Integer, nullable=True)
     torque_nm = Column(Float, nullable=True)
     tool_wear_min = Column(Integer, nullable=True)
-
-    machine = relationship("Machine", back_populates="telemetry_logs")
+    is_failure = Column(Boolean, default=False)
+    failure_reason = Column(String, nullable=True)  # e.g., "Overstrain Failure"
+    timestamp = Column(DateTime, default=datetime.utcnow)

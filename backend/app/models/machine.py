@@ -14,5 +14,4 @@ class Machine(Base):
     status = Column(String(50), nullable=False, default="OFFLINE")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    telemetry_logs = relationship("TelemetryLog", back_populates="machine", cascade="all, delete-orphan")
     alerts = relationship("Alert", back_populates="machine", cascade="all, delete-orphan")
