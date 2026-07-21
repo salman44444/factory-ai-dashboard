@@ -4,7 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 class AlertBase(BaseModel):
-    machine_id: UUID
+    machine_id: str
     timestamp: datetime
     severity: str
     reason: Optional[str] = None
