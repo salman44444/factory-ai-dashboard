@@ -8,7 +8,7 @@ class Alert(Base):
     __tablename__ = "alerts"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    machine_id = Column(UUID(as_uuid=True), ForeignKey("machines.id", ondelete="CASCADE"), nullable=False)
+    machine_id = Column(String(50), ForeignKey("machines.id", ondelete="CASCADE"), nullable=False)
     timestamp = Column(DateTime(timezone=True), nullable=False)
     severity = Column(String(50), nullable=False)
     reason = Column(Text, nullable=True)

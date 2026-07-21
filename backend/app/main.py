@@ -20,6 +20,10 @@ tags_metadata = [
         "name": "Alerts",
         "description": "Predictive maintenance warning and anomaly alerts.",
     },
+    {
+        "name": "Simulator",
+        "description": "Real-time data streaming simulator configuration and control.",
+    },
 ]
 
 app = FastAPI(
