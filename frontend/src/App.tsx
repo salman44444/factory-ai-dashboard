@@ -18,6 +18,7 @@ import { MetricCard } from './components/MetricCard';
 import { ChartCard } from './components/ChartCard';
 import { AlertBanner } from './components/AlertBanner';
 import { SimulatorControl } from './components/SimulatorControl';
+import { TelemetryTable } from './components/TelemetryTable';
 
 export default function App() {
   const { isConnected, telemetryLogs, alerts, setAlerts } = useWebSocket();
@@ -27,6 +28,15 @@ export default function App() {
   const [historicalLogs, setHistoricalLogs] = useState<TelemetryLog[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const [historyViewMode, setHistoryViewMode] = useState<'live' | 'failure'>('live');
+  const [failureContextLogs, setFailureContextLogs] = useState<TelemetryLog[]>([]);
+  const [loadingFailureContext, setLoadingFailureContext] = useState(false);
+
+  // Selected Machine Details
+  const selectedMachine = useMemo(() => {
+    return machines.find(m => m.id === selectedMachineId);
+  }, [machines, selectedMachineId]);
 
   // Fetch initial machines and alerts on load
   const fetchInitialData = async () => {
@@ -66,7 +76,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch telemetry history when selected machine changes
+  // Fetch telemetry history when selected machine changes or its status changes
   useEffect(() => {
     if (!selectedMachineId) return;
 
@@ -86,7 +96,31 @@ export default function App() {
       }
     };
 
+    const fetchFailureContext = async () => {
+      setLoadingFailureContext(true);
+      try {
+        // Fetch logs leading up to failure
+        const res = await fetch(`/api/v1/telemetry/machine/${selectedMachineId}/failure-context?limit=50`);
+        const data = await res.json();
+        setFailureContextLogs(data);
+      } catch (e) {
+        console.error('Error fetching failure context:', e);
+      } finally {
+        setLoadingFailureContext(false);
+      }
+    };
+
     fetchHistory();
+    fetchFailureContext();
+  }, [selectedMachineId, selectedMachine?.status]);
+
+  // Auto-switch view mode when selecting a failed machine
+  useEffect(() => {
+    if (selectedMachine?.status === 'FAULT') {
+      setHistoryViewMode('failure');
+    } else {
+      setHistoryViewMode('live');
+    }
   }, [selectedMachineId]);
 
   // Combine historical logs and real-time WebSocket logs for chart display
@@ -109,10 +143,12 @@ export default function App() {
     return merged.slice(-50);
   }, [selectedMachineId, historicalLogs, telemetryLogs]);
 
-  // Selected Machine Details
-  const selectedMachine = useMemo(() => {
-    return machines.find(m => m.id === selectedMachineId);
-  }, [machines, selectedMachineId]);
+  // Select which log dataset to display based on historyViewMode
+  const displayedLogs = useMemo(() => {
+    return historyViewMode === 'live' ? activeLogs : failureContextLogs;
+  }, [historyViewMode, activeLogs, failureContextLogs]);
+
+
 
   // Get current metrics (latest data point) for selected machine
   const currentMetrics = useMemo(() => {
@@ -306,7 +342,11 @@ export default function App() {
         {/* Center Diagnostics & Charts */}
         <section className="col-span-12 lg:col-span-6 flex flex-col gap-6">
           {/* Main Chart */}
-          <ChartCard data={activeLogs} machineId={selectedMachineId} loading={loadingHistory} />
+          <ChartCard 
+            data={displayedLogs} 
+            machineId={selectedMachineId} 
+            loading={historyViewMode === 'live' ? loadingHistory : loadingFailureContext} 
+          />
 
           {/* Machine Real-time Telemetry Stats Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
@@ -397,6 +437,17 @@ export default function App() {
               <p className="text-gray-500 text-xs">Select an asset from the checklist to see diagnostics data.</p>
             )}
           </div>
+
+          {/* Incident & Telemetry History Table */}
+          {selectedMachineId && (
+            <TelemetryTable
+              data={displayedLogs}
+              loading={historyViewMode === 'live' ? loadingHistory : loadingFailureContext}
+              viewMode={historyViewMode}
+              onViewModeChange={setHistoryViewMode}
+              hasFailure={failureContextLogs.some(log => log.is_failure)}
+            />
+          )}
         </section>
 
         {/* Right Column: Alerts & Controls */}
