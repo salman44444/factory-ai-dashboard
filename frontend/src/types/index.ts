@@ -32,3 +32,31 @@ export interface Alert {
 export interface SimulatorStatus {
   is_running: boolean;
 }
+
+export interface DiagnoseTelemetryDetails {
+  id?: number;
+  machine_id: string;
+  product_id?: string | null;
+  air_temp_k?: number | null;
+  process_temp_k?: number | null;
+  rpm?: number | null;
+  torque_nm?: number | null;
+  tool_wear_min?: number | null;
+  is_failure: boolean;
+  failure_reason?: string | null;
+  timestamp?: string | null;
+}
+
+export interface DiagnoseResponse {
+  machine_id: string;
+  has_failure: boolean;
+  failure_reason?: string | null;
+  telemetry?: DiagnoseTelemetryDetails | null;
+  summary: string;
+  diagnosis: string;
+  root_cause: string;
+  recommendations: string[];
+  confidence_score: number;
+  timestamp?: string | null;
+}
+

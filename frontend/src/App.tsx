@@ -9,16 +9,20 @@ import {
   Server, 
   Radio,
   Layers,
-  Wrench
+  Wrench,
+  Bot,
+  Sparkles
 } from 'lucide-react';
 
-import type { Machine, TelemetryLog } from './types';
+import type { Machine, TelemetryLog, DiagnoseResponse } from './types';
 import { useWebSocket } from './hooks/useWebSocket';
 import { MetricCard } from './components/MetricCard';
 import { ChartCard } from './components/ChartCard';
 import { AlertBanner } from './components/AlertBanner';
 import { SimulatorControl } from './components/SimulatorControl';
 import { TelemetryTable } from './components/TelemetryTable';
+import { AIDiagnosisModal } from './components/AIDiagnosisModal';
+
 
 export default function App() {
   const { isConnected, telemetryLogs, alerts, setAlerts } = useWebSocket();
@@ -32,6 +36,33 @@ export default function App() {
   const [historyViewMode, setHistoryViewMode] = useState<'live' | 'failure'>('live');
   const [failureContextLogs, setFailureContextLogs] = useState<TelemetryLog[]>([]);
   const [loadingFailureContext, setLoadingFailureContext] = useState(false);
+
+  // AI Diagnosis State
+  const [diagnosisModalOpen, setDiagnosisModalOpen] = useState(false);
+  const [diagnosisData, setDiagnosisData] = useState<DiagnoseResponse | null>(null);
+  const [loadingDiagnosis, setLoadingDiagnosis] = useState(false);
+
+  const handleDiagnoseWithAI = async (machineId?: string) => {
+    const targetId = machineId || selectedMachineId;
+    if (!targetId) return;
+
+    setLoadingDiagnosis(true);
+    setDiagnosisModalOpen(true);
+    try {
+      const res = await fetch('/api/chat/diagnose', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ machine_id: targetId })
+      });
+      const data = await res.json();
+      setDiagnosisData(data);
+    } catch (e) {
+      console.error('Error triggering AI diagnosis:', e);
+    } finally {
+      setLoadingDiagnosis(false);
+    }
+  };
+
 
   // Selected Machine Details
   const selectedMachine = useMemo(() => {
@@ -393,9 +424,20 @@ export default function App() {
 
           {/* Machine Info & Diagnostic Details */}
           <div className="glass-panel rounded-2xl p-5 flex flex-col flex-1">
-            <h3 className="text-sm font-bold font-heading text-white mb-2">
-              Diagnostics Context
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold font-heading text-white">
+                Diagnostics Context
+              </h3>
+              {selectedMachineId && (
+                <button
+                  onClick={() => handleDiagnoseWithAI(selectedMachineId)}
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-cyan-500/20 flex items-center gap-2 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                  Diagnose with AI
+                </button>
+              )}
+            </div>
             {selectedMachine ? (
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-xs">
                 <div className="bg-white/5 p-3 rounded-xl border border-white/5">
@@ -465,6 +507,16 @@ export default function App() {
       <footer className="py-4 border-t border-white/5 text-center text-xs text-gray-600 bg-black/10 mt-6">
         <p>© 2026 AeroForge AI Monitoring. Real-time telemetry via WebSockets.</p>
       </footer>
+
+      {/* AI Diagnosis Modal */}
+      <AIDiagnosisModal 
+        isOpen={diagnosisModalOpen}
+        onClose={() => setDiagnosisModalOpen(false)}
+        data={diagnosisData}
+        loading={loadingDiagnosis}
+        onReDiagnose={() => handleDiagnoseWithAI()}
+      />
     </div>
   );
 }
+

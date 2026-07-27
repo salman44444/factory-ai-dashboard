@@ -25,6 +25,10 @@ tags_metadata = [
         "name": "Simulator",
         "description": "Real-time data streaming simulator configuration and control.",
     },
+    {
+        "name": "Chat",
+        "description": "AI-powered diagnostic copilot and crash analysis endpoints.",
+    },
 ]
 
 app = FastAPI(
@@ -48,6 +52,21 @@ app.add_middleware(
 
 # Include API Router
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from app.api.deps import get_db_session
+from app.schemas.chat import DiagnoseRequest, DiagnoseResponse
+from app.services.diagnostic_service import run_ai_diagnosis
+
+@app.post("/api/chat/diagnose", response_model=DiagnoseResponse, tags=["Chat"], summary="Diagnose machine failure with AI (Direct path)")
+def diagnose_machine_direct(
+    payload: DiagnoseRequest,
+    db: Session = Depends(get_db_session)
+):
+    """Direct POST /api/chat/diagnose route."""
+    return run_ai_diagnosis(db, machine_id=payload.machine_id)
+
 
 @app.websocket("/ws/live-data")
 async def websocket_endpoint(websocket: WebSocket):
