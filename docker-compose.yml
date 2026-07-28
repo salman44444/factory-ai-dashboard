@@ -27,6 +27,9 @@ services:
       - ENVIRONMENT=development
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - PINECONE_API_KEY=${PINECONE_API_KEY:-}
+      - LANGCHAIN_TRACING_V2=${LANGSMITH_TRACING:-true}
+      - LANGCHAIN_API_KEY=${LANGSMITH_API_KEY:-}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-factory-ai-dashboard}
     volumes:
       - ./backend:/app
     depends_on:

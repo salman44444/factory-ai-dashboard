@@ -47,9 +47,18 @@ export interface DiagnoseTelemetryDetails {
   timestamp?: string | null;
 }
 
+export interface AgentFlowDetails {
+  telemetry_window: Record<string, any>[];
+  haas_manual_context: string;
+  fanuc_alarm_context: string;
+  cnc_sop_context: string;
+}
+
 export interface DiagnoseResponse {
   machine_id: string;
   failure_type: string;
   diagnosis: string;
   sources_used: string[];
+  agent_flow_details?: AgentFlowDetails;
+  error?: string;
 }

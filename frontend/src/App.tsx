@@ -47,6 +47,7 @@ export default function App() {
     if (!targetId) return;
 
     setLoadingDiagnosis(true);
+    setDiagnosisData(null);
     setDiagnosisModalOpen(true);
     try {
       const res = await fetch('/api/chat/diagnose', {
@@ -55,9 +56,26 @@ export default function App() {
         body: JSON.stringify({ machine_id: targetId })
       });
       const data = await res.json();
-      setDiagnosisData(data);
-    } catch (e) {
+      if (!res.ok) {
+        setDiagnosisData({
+          machine_id: targetId,
+          failure_type: 'Backend Error',
+          diagnosis: '',
+          sources_used: [],
+          error: data.detail || 'Failed to generate AI diagnosis.'
+        });
+      } else {
+        setDiagnosisData(data);
+      }
+    } catch (e: any) {
       console.error('Error triggering AI diagnosis:', e);
+      setDiagnosisData({
+        machine_id: targetId,
+        failure_type: 'Connection Error',
+        diagnosis: '',
+        sources_used: [],
+        error: e.message || 'Unable to connect to AI backend service.'
+      });
     } finally {
       setLoadingDiagnosis(false);
     }

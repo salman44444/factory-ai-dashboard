@@ -47,7 +47,7 @@ def get_vector_store():
 # Using Gemini model (reads GOOGLE_API_KEY or GEMINI_API_KEY from environment)
 api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
+    model="gemini-3.6-flash",
     temperature=0.2,
     google_api_key=api_key
 )
@@ -191,7 +191,14 @@ INSTRUCTIONS:
 """
 
     response = llm.invoke(prompt)
-    return {"final_diagnosis": response.content}
+    if isinstance(response.content, str):
+        diagnosis_str = response.content
+    elif isinstance(response.content, list):
+        diagnosis_str = "".join([c.get("text", str(c)) if isinstance(c, dict) else str(c) for c in response.content])
+    else:
+        diagnosis_str = str(response.content)
+
+    return {"final_diagnosis": diagnosis_str}
 
 # ==========================================
 # 4. LangGraph Graph Assembly

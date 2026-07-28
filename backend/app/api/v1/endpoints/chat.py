@@ -37,7 +37,13 @@ async def diagnose_machine(
                 "Haas VF Series Service Manual",
                 "Fanuc Spindle Alarm List",
                 "CNC Lathe Safe Operating Procedure"
-            ]
+            ],
+            "agent_flow_details": {
+                "telemetry_window": final_state.get("telemetry_window", []),
+                "haas_manual_context": final_state.get("haas_manual_context", ""),
+                "fanuc_alarm_context": final_state.get("fanuc_alarm_context", ""),
+                "cnc_sop_context": final_state.get("cnc_sop_context", ""),
+            }
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

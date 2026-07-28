@@ -53,19 +53,49 @@ app.add_middleware(
 # Include API Router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.api.deps import get_db_session
-from app.schemas.chat import DiagnoseRequest, DiagnoseResponse
-from app.services.diagnostic_service import run_ai_diagnosis
+from app.schemas.chat import DiagnoseRequest
+from app.services.agent_workflow import build_diagnostic_graph
 
-@app.post("/api/chat/diagnose", response_model=DiagnoseResponse, tags=["Chat"], summary="Diagnose machine failure with AI (Direct path)")
-def diagnose_machine_direct(
-    payload: DiagnoseRequest,
+@app.post("/api/chat/diagnose", tags=["Chat"], summary="Diagnose machine failure with AI (Direct path)")
+async def diagnose_machine_direct(
+    request: DiagnoseRequest,
     db: Session = Depends(get_db_session)
 ):
-    """Direct POST /api/chat/diagnose route."""
-    return run_ai_diagnosis(db, machine_id=payload.machine_id)
+    """Direct POST /api/chat/diagnose route for frontend AI Diagnosis."""
+    try:
+        app_graph = build_diagnostic_graph(db)
+        initial_state = {
+            "machine_id": request.machine_id,
+            "user_query": request.user_query,
+            "failure_type": "",
+            "telemetry_window": [],
+            "haas_manual_context": "",
+            "fanuc_alarm_context": "",
+            "cnc_sop_context": "",
+            "final_diagnosis": ""
+        }
+        final_state = await app_graph.ainvoke(initial_state)
+        return {
+            "machine_id": request.machine_id,
+            "failure_type": final_state["failure_type"],
+            "diagnosis": final_state["final_diagnosis"],
+            "sources_used": [
+                "Haas VF Series Service Manual",
+                "Fanuc Spindle Alarm List",
+                "CNC Lathe Safe Operating Procedure"
+            ],
+            "agent_flow_details": {
+                "telemetry_window": final_state.get("telemetry_window", []),
+                "haas_manual_context": final_state.get("haas_manual_context", ""),
+                "fanuc_alarm_context": final_state.get("fanuc_alarm_context", ""),
+                "cnc_sop_context": final_state.get("cnc_sop_context", ""),
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.websocket("/ws/live-data")
