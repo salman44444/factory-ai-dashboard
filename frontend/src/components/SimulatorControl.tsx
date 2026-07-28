@@ -69,7 +69,6 @@ export const SimulatorControl: React.FC<SimulatorControlProps> = ({ onStatusChan
       const res = await fetch('/api/v1/simulator/load', { method: 'POST' });
       await res.json();
       setDbStatus('Preloaded all CSV records successfully.');
-      // Refresh status
       fetchStatus();
     } catch (e) {
       console.error('Error bulk loading:', e);
@@ -80,22 +79,22 @@ export const SimulatorControl: React.FC<SimulatorControlProps> = ({ onStatusChan
   };
 
   return (
-    <div className="glass-panel rounded-2xl p-5 flex flex-col justify-between h-full">
+    <div className="apple-card p-5 flex flex-col justify-between h-full">
       <div>
-        <h3 className="text-md font-bold font-heading text-white flex items-center gap-2">
-          <Database className="w-4 h-4 text-cyan-400" />
+        <h3 className="text-sm font-bold font-heading text-[var(--color-label-primary)] flex items-center gap-2">
+          <Database className="w-4 h-4 text-[var(--color-cyan)]" />
           Simulator Operations
         </h3>
-        <p className="text-gray-400 text-xs mt-0.5">
+        <p className="text-[var(--color-label-secondary)] text-xs mt-0.5">
           Control the industrial machine telemetry streaming loop
         </p>
       </div>
 
       <div className="mt-5 flex flex-col gap-3">
-        <div className="flex items-center justify-between bg-white/5 p-3 rounded-xl border border-white/5">
+        <div className="flex items-center justify-between bg-[var(--color-bg-control)] p-3 rounded-[14px] border border-[var(--color-border-subtle)]">
           <div className="flex items-center gap-2">
-            <span className={`w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-emerald-500 pulse-green' : 'bg-gray-500'}`}></span>
-            <span className="text-xs font-semibold text-gray-300">
+            <span className={`w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-[var(--color-emerald)] pulse-green' : 'bg-[var(--color-label-tertiary)]'}`}></span>
+            <span className="text-xs font-semibold text-[var(--color-label-primary)]">
               Status: {isRunning ? 'Active Stream' : 'Paused / Stopped'}
             </span>
           </div>
@@ -103,10 +102,10 @@ export const SimulatorControl: React.FC<SimulatorControlProps> = ({ onStatusChan
           <button
             onClick={handleToggle}
             disabled={loading}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
               isRunning 
-                ? 'bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/20' 
-                : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                ? 'bg-[var(--color-amber-subtle)] text-[var(--color-amber)] border border-[var(--color-amber)]' 
+                : 'bg-[var(--color-emerald)] text-white hover:opacity-90 shadow-sm'
             }`}
           >
             {loading ? (
@@ -129,16 +128,16 @@ export const SimulatorControl: React.FC<SimulatorControlProps> = ({ onStatusChan
           <button
             onClick={handleBulkLoad}
             disabled={loading}
-            className="py-2.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 hover:text-white rounded-xl text-xs font-semibold border border-white/5 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            className="py-2.5 bg-[var(--color-bg-control)] hover:bg-[var(--color-bg-surface-elevated)] disabled:opacity-50 text-[var(--color-label-primary)] rounded-xl text-xs font-semibold border border-[var(--color-border-subtle)] flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
           >
-            <Database className="w-3.5 h-3.5" />
+            <Database className="w-3.5 h-3.5 text-[var(--color-cyan)]" />
             Bulk Load
           </button>
           
           <button
             onClick={handleReset}
             disabled={loading}
-            className="py-2.5 bg-rose-950/20 hover:bg-rose-950/30 border border-rose-500/10 hover:border-rose-500/20 text-rose-400 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            className="py-2.5 bg-[var(--color-rose-subtle)] hover:bg-[var(--color-rose-subtle)] border border-[var(--color-rose)] text-[var(--color-rose)] rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             Reset Data
@@ -147,7 +146,7 @@ export const SimulatorControl: React.FC<SimulatorControlProps> = ({ onStatusChan
       </div>
 
       {dbStatus && (
-        <div className="mt-4 text-[10px] text-gray-400 bg-black/20 p-2 rounded-lg border border-white/5 truncate">
+        <div className="mt-4 text-[11px] text-[var(--color-label-secondary)] bg-[var(--color-bg-control)] p-2.5 rounded-lg border border-[var(--color-border-subtle)] truncate">
           {dbStatus}
         </div>
       )}

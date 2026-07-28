@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   ResponsiveContainer, 
   LineChart, 
@@ -18,61 +18,91 @@ interface ChartCardProps {
 }
 
 export const ChartCard: React.FC<ChartCardProps> = ({ data, machineId, loading = false }) => {
-  // Format timestamps for readability on x-axis
-  const chartData = data.map((log) => {
-    let label = '';
-    try {
-      const date = new Date(log.timestamp);
-      label = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    } catch {
-      label = log.timestamp;
+  const [timeRange, setTimeRange] = useState<'1m' | '5m' | '15m' | 'ALL'>('ALL');
+
+  // Format timestamps and filter by time range
+  const chartData = useMemo(() => {
+    let filtered = [...data];
+    
+    if (timeRange === '1m') {
+      filtered = filtered.slice(-10);
+    } else if (timeRange === '5m') {
+      filtered = filtered.slice(-25);
+    } else if (timeRange === '15m') {
+      filtered = filtered.slice(-40);
     }
-    return {
-      ...log,
-      timeLabel: label
-    };
-  });
+
+    return filtered.map((log) => {
+      let label = '';
+      try {
+        const date = new Date(log.timestamp);
+        label = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      } catch {
+        label = log.timestamp;
+      }
+      return {
+        ...log,
+        timeLabel: label
+      };
+    });
+  }, [data, timeRange]);
 
   return (
-    <div className="glass-panel rounded-2xl p-6 flex flex-col h-[400px]">
-      <div className="flex justify-between items-center mb-4">
+    <div className="apple-card p-5 flex flex-col h-[400px]">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
         <div>
-          <h3 className="text-lg font-bold font-heading text-white">
+          <h3 className="text-base font-bold font-heading text-[var(--color-label-primary)]">
             Performance Diagnostics
           </h3>
-          <p className="text-gray-400 text-xs mt-0.5">
-            Real-time RPM and Torque trends for Machine {machineId}
+          <p className="text-[var(--color-label-secondary)] text-xs mt-0.5">
+            Real-time RPM and Torque trends for Machine {machineId || 'Selected'}
           </p>
         </div>
+        
         <div className="flex items-center gap-4 text-xs font-semibold">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
-            <span className="text-gray-300">RPM (Left Axis)</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-cyan)]"></span>
+              <span className="text-[var(--color-label-secondary)]">RPM (Left)</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-purple)]"></span>
+              <span className="text-[var(--color-label-secondary)]">Torque (Right)</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-purple-400"></span>
-            <span className="text-gray-300">Torque (Right Axis)</span>
+
+          {/* Time Range Apple Segmented Control */}
+          <div className="apple-segmented-control">
+            {(['1m', '5m', '15m', 'ALL'] as const).map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`apple-segmented-item ${timeRange === range ? 'active' : ''}`}
+              >
+                {range}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
       <div className="flex-1 w-full min-h-0">
         {loading ? (
-          <div className="h-full flex flex-col items-center justify-center text-cyan-400 text-sm gap-2">
+          <div className="h-full flex flex-col items-center justify-center text-[var(--color-cyan)] text-sm gap-2">
             <Loader2 className="w-6 h-6 animate-spin" />
-            <span>Syncing database history...</span>
+            <span className="text-[var(--color-label-secondary)] font-medium">Syncing telemetry history...</span>
           </div>
         ) : chartData.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-gray-500 text-sm">
-            Waiting for live data stream...
+          <div className="h-full flex items-center justify-center text-[var(--color-label-tertiary)] text-sm font-medium">
+            Waiting for live telemetry stream...
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-separator)" vertical={false} />
               <XAxis 
                 dataKey="timeLabel" 
-                stroke="#6b7280" 
+                stroke="var(--color-label-tertiary)" 
                 fontSize={10} 
                 tickLine={false}
                 axisLine={false}
@@ -80,7 +110,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({ data, machineId, loading =
               />
               <YAxis 
                 yAxisId="left"
-                stroke="#06b6d4" 
+                stroke="var(--color-cyan)" 
                 fontSize={10} 
                 tickLine={false}
                 axisLine={false}
@@ -89,7 +119,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({ data, machineId, loading =
               <YAxis 
                 yAxisId="right"
                 orientation="right"
-                stroke="#a855f7" 
+                stroke="var(--color-purple)" 
                 fontSize={10} 
                 tickLine={false}
                 axisLine={false}
@@ -97,33 +127,34 @@ export const ChartCard: React.FC<ChartCardProps> = ({ data, machineId, loading =
               />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: '#111827', 
-                  borderColor: 'rgba(255, 255, 255, 0.08)',
+                  backgroundColor: 'var(--color-bg-surface-elevated)', 
+                  borderColor: 'var(--color-border-subtle)',
                   borderRadius: '12px',
-                  color: '#f3f4f6',
+                  color: 'var(--color-label-primary)',
                   fontFamily: 'var(--font-sans)',
-                  fontSize: '12px'
+                  fontSize: '12px',
+                  boxShadow: 'var(--shadow-md)'
                 }}
-                labelStyle={{ fontWeight: 'bold', color: '#9ca3af' }}
+                labelStyle={{ fontWeight: 'bold', color: 'var(--color-label-secondary)' }}
               />
               <Line 
                 yAxisId="left"
                 type="monotone" 
                 dataKey="rpm" 
-                stroke="#06b6d4" 
+                stroke="var(--color-cyan)" 
                 strokeWidth={2}
                 dot={false}
-                activeDot={{ r: 4, stroke: '#06b6d4', strokeWidth: 2 }}
+                activeDot={{ r: 5, stroke: 'var(--color-cyan)', strokeWidth: 2, fill: 'var(--color-bg-surface)' }}
                 name="Rotational Speed (RPM)"
               />
               <Line 
                 yAxisId="right"
                 type="monotone" 
                 dataKey="torque_nm" 
-                stroke="#a855f7" 
+                stroke="var(--color-purple)" 
                 strokeWidth={2}
                 dot={false}
-                activeDot={{ r: 4, stroke: '#a855f7', strokeWidth: 2 }}
+                activeDot={{ r: 5, stroke: 'var(--color-purple)', strokeWidth: 2, fill: 'var(--color-bg-surface)' }}
                 name="Torque (Nm)"
               />
             </LineChart>

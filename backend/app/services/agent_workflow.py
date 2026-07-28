@@ -28,6 +28,10 @@ class MultiAgentDiagnosticState(TypedDict):
     fanuc_alarm_context: str
     cnc_sop_context: str
     
+    haas_query: str
+    fanuc_query: str
+    cnc_sop_query: str
+    
     # Final output
     final_diagnosis: str
 
@@ -99,9 +103,32 @@ def fetch_sql_context(state: MultiAgentDiagnosticState, db_session: Session) -> 
     }
 
 
+def generate_dynamic_query(state: MultiAgentDiagnosticState, manual_context: str) -> str:
+    """Uses LLM to dynamically generate an optimized search query based on current failure context."""
+    prompt = f"""
+You are an AI generating a precise search query for a vector database of technical manuals.
+The current machine failure type / alert is: {state.get('failure_type', 'Unknown')}
+The user's specific inquiry is: "{state.get('user_query', '')}"
+
+We need to search the "{manual_context}" for relevant context.
+Generate a concise, highly relevant search query (3-8 keywords) tailored to this specific manual.
+Do NOT use quotes, prefixes, or any extra text. Just output the keywords.
+"""
+    response = llm.invoke(prompt)
+    
+    if isinstance(response.content, str):
+        query_text = response.content.strip()
+    elif isinstance(response.content, list):
+        query_text = "".join([c.get("text", str(c)) if isinstance(c, dict) else str(c) for c in response.content]).strip()
+    else:
+        query_text = str(response.content).strip()
+        
+    return f"search_query: {query_text}"
+
+
 def rag_haas_expert(state: MultiAgentDiagnosticState) -> Dict[str, Any]:
     """Retrieves mechanical service procedures from Haas VF Service Manual."""
-    query = f"search_query: {state['failure_type']} mechanical repair spindle alignment tool wear"
+    query = generate_dynamic_query(state, "Haas VF Service Manual (Mechanical Diagnostics)")
     
     try:
         vector_store = get_vector_store()
@@ -114,12 +141,15 @@ def rag_haas_expert(state: MultiAgentDiagnosticState) -> Dict[str, Any]:
     except Exception as e:
         context = f"Notice: Could not query Haas manual index ({str(e)})"
         
-    return {"haas_manual_context": context if context else "No Haas mechanical manual entries found."}
+    return {
+        "haas_manual_context": context if context else "No Haas mechanical manual entries found.",
+        "haas_query": query
+    }
 
 
 def rag_fanuc_expert(state: MultiAgentDiagnosticState) -> Dict[str, Any]:
     """Retrieves electrical/drive alarm codes from Fanuc Spindle Alarm List."""
-    query = f"search_query: {state['failure_type']} spindle alarm electrical code overstrain power"
+    query = generate_dynamic_query(state, "Fanuc Spindle Alarm List (Electrical & Drive Codes)")
     
     try:
         vector_store = get_vector_store()
@@ -132,12 +162,15 @@ def rag_fanuc_expert(state: MultiAgentDiagnosticState) -> Dict[str, Any]:
     except Exception as e:
         context = f"Notice: Could not query Fanuc alarm list index ({str(e)})"
 
-    return {"fanuc_alarm_context": context if context else "No Fanuc alarm codes found matching this condition."}
+    return {
+        "fanuc_alarm_context": context if context else "No Fanuc alarm codes found matching this condition.",
+        "fanuc_query": query
+    }
 
 
 def rag_sop_expert(state: MultiAgentDiagnosticState) -> Dict[str, Any]:
     """Retrieves standard operating procedures and safety protocols from CNC Lathe SOP."""
-    query = f"search_query: {state['failure_type']} safety lock out emergency stop operator protocol"
+    query = generate_dynamic_query(state, "CNC Lathe Factory SOP (Safety & Operating Protocols)")
     
     try:
         vector_store = get_vector_store()
@@ -150,7 +183,10 @@ def rag_sop_expert(state: MultiAgentDiagnosticState) -> Dict[str, Any]:
     except Exception as e:
         context = f"Notice: Could not query CNC SOP index ({str(e)})"
 
-    return {"cnc_sop_context": context if context else "No specific safety SOP guidelines retrieved."}
+    return {
+        "cnc_sop_context": context if context else "No specific safety SOP guidelines retrieved.",
+        "cnc_sop_query": query
+    }
 
 
 def generate_diagnosis(state: MultiAgentDiagnosticState) -> Dict[str, Any]:

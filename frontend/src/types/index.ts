@@ -52,6 +52,9 @@ export interface AgentFlowDetails {
   haas_manual_context: string;
   fanuc_alarm_context: string;
   cnc_sop_context: string;
+  haas_query?: string;
+  fanuc_query?: string;
+  cnc_sop_query?: string;
 }
 
 export interface DiagnoseResponse {

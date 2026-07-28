@@ -1,7 +1,6 @@
 import React from 'react';
 import type { LucideIcon } from 'lucide-react';
 
-
 interface MetricCardProps {
   title: string;
   value: string | number;
@@ -23,39 +22,34 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 }) => {
   const colorMap = {
     cyan: {
-      bg: 'rgba(6, 182, 212, 0.08)',
-      border: 'rgba(6, 182, 212, 0.2)',
-      text: 'text-cyan-400',
-      iconBg: 'bg-cyan-500/10',
-      glow: 'glow-cyan'
+      bg: 'var(--color-cyan-subtle)',
+      border: 'rgba(50, 173, 230, 0.25)',
+      text: 'var(--color-cyan)',
+      iconBg: 'var(--color-cyan-subtle)',
     },
     purple: {
-      bg: 'rgba(168, 85, 247, 0.08)',
-      border: 'rgba(168, 85, 247, 0.2)',
-      text: 'text-purple-400',
-      iconBg: 'bg-purple-500/10',
-      glow: 'glow-purple'
+      bg: 'var(--color-purple-subtle)',
+      border: 'rgba(175, 82, 222, 0.25)',
+      text: 'var(--color-purple)',
+      iconBg: 'var(--color-purple-subtle)',
     },
     rose: {
-      bg: 'rgba(244, 63, 94, 0.08)',
-      border: 'rgba(244, 63, 94, 0.2)',
-      text: 'text-rose-400',
-      iconBg: 'bg-rose-500/10',
-      glow: 'glow-rose'
+      bg: 'var(--color-rose-subtle)',
+      border: 'rgba(255, 59, 48, 0.25)',
+      text: 'var(--color-rose)',
+      iconBg: 'var(--color-rose-subtle)',
     },
     amber: {
-      bg: 'rgba(245, 158, 11, 0.08)',
-      border: 'rgba(245, 158, 11, 0.2)',
-      text: 'text-amber-400',
-      iconBg: 'bg-amber-500/10',
-      glow: 'glow-amber'
+      bg: 'var(--color-amber-subtle)',
+      border: 'rgba(255, 149, 0, 0.25)',
+      text: 'var(--color-amber)',
+      iconBg: 'var(--color-amber-subtle)',
     },
     emerald: {
-      bg: 'rgba(16, 185, 129, 0.08)',
-      border: 'rgba(16, 185, 129, 0.2)',
-      text: 'text-emerald-400',
-      iconBg: 'bg-emerald-500/10',
-      glow: 'glow-green'
+      bg: 'var(--color-emerald-subtle)',
+      border: 'rgba(52, 199, 89, 0.25)',
+      text: 'var(--color-emerald)',
+      iconBg: 'var(--color-emerald-subtle)',
     }
   };
 
@@ -63,7 +57,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
   return (
     <div 
-      className="glass-panel glass-panel-hover rounded-2xl p-5 flex flex-col justify-between"
+      className="apple-card apple-card-hover p-4 flex flex-col justify-between"
       style={{ 
         backgroundColor: scheme.bg, 
         borderColor: scheme.border 
@@ -71,30 +65,39 @@ export const MetricCard: React.FC<MetricCardProps> = ({
     >
       <div className="flex justify-between items-start">
         <div>
-          <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider font-heading">
+          <p className="text-[11px] font-semibold uppercase tracking-wider font-heading text-[var(--color-label-secondary)]">
             {title}
           </p>
-          <h3 className={`text-3xl font-bold mt-2 font-heading tracking-tight ${scheme.text} ${scheme.glow}`}>
+          <h3 
+            className="text-2xl font-bold mt-1.5 font-heading tracking-tight"
+            style={{ color: scheme.text }}
+          >
             {value}
-            {unit && <span className="text-sm font-medium text-gray-400 ml-1">{unit}</span>}
+            {unit && <span className="text-xs font-medium ml-1 text-[var(--color-label-tertiary)]">{unit}</span>}
           </h3>
         </div>
-        <div className={`p-2.5 rounded-xl ${scheme.iconBg}`}>
-          <Icon className={`w-5 h-5 ${scheme.text}`} />
+        <div 
+          className="p-2.5 rounded-[12px] flex items-center justify-center shrink-0"
+          style={{ backgroundColor: scheme.iconBg }}
+        >
+          <Icon className="w-5 h-5" style={{ color: scheme.text }} />
         </div>
       </div>
 
       {trend && (
-        <div className="mt-4 flex items-center gap-1.5 text-xs">
-          <span className={`font-semibold ${
-            trendType === 'up' ? 'text-emerald-400' :
-            trendType === 'down' ? 'text-cyan-400' :
-            trendType === 'danger' ? 'text-rose-400 pulse-red' :
-            'text-gray-400'
-          }`}>
+        <div className="mt-3 flex items-center gap-1.5 text-[11px]">
+          <span 
+            className="font-semibold"
+            style={{
+              color: trendType === 'up' ? 'var(--color-emerald)' :
+                     trendType === 'down' ? 'var(--color-cyan)' :
+                     trendType === 'danger' ? 'var(--color-rose)' :
+                     'var(--color-label-secondary)'
+            }}
+          >
             {trend}
           </span>
-          <span className="text-gray-500">since last check</span>
+          <span className="text-[var(--color-label-tertiary)]">since last check</span>
         </div>
       )}
     </div>
