@@ -49,14 +49,7 @@ export interface DiagnoseTelemetryDetails {
 
 export interface DiagnoseResponse {
   machine_id: string;
-  has_failure: boolean;
-  failure_reason?: string | null;
-  telemetry?: DiagnoseTelemetryDetails | null;
-  summary: string;
+  failure_type: string;
   diagnosis: string;
-  root_cause: string;
-  recommendations: string[];
-  confidence_score: number;
-  timestamp?: string | null;
+  sources_used: string[];
 }
-

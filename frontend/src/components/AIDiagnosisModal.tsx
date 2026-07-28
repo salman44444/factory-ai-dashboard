@@ -3,15 +3,10 @@ import {
   Bot, 
   X, 
   AlertTriangle, 
-  CheckCircle2, 
-  Gauge, 
-  Cpu, 
-  Thermometer, 
-  Layers, 
   ShieldCheck, 
-  Clock, 
   RefreshCw,
-  Zap
+  Zap,
+  BookOpen
 } from 'lucide-react';
 import type { DiagnoseResponse } from '../types';
 
@@ -31,6 +26,8 @@ export const AIDiagnosisModal: React.FC<AIDiagnosisModalProps> = ({
   onReDiagnose
 }) => {
   if (!isOpen) return null;
+
+  const isFailure = data?.failure_type && data.failure_type !== "Manual Inspection / Performance Anomaly";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md animate-fade-in">
@@ -53,7 +50,7 @@ export const AIDiagnosisModal: React.FC<AIDiagnosisModalProps> = ({
                   AI Crash Diagnostic Engine
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/10 border border-cyan-500/30 text-cyan-300">
-                  PostgreSQL RAG Context
+                  LangGraph RAG Agent
                 </span>
               </div>
               <p className="text-gray-400 text-xs mt-0.5">
@@ -81,8 +78,8 @@ export const AIDiagnosisModal: React.FC<AIDiagnosisModalProps> = ({
                 </div>
               </div>
               <div className="text-center">
-                <p className="text-white font-semibold font-heading text-base">Querying PostgreSQL Crash Telemetry...</p>
-                <p className="text-xs text-gray-400 mt-1">Extracting RPM, Torque Nm, and failure type metrics</p>
+                <p className="text-white font-semibold font-heading text-base">Querying Parallel RAG Experts...</p>
+                <p className="text-xs text-gray-400 mt-1">Analyzing Pinecone manual chunks and PostgreSQL telemetry trends.</p>
               </div>
             </div>
           ) : !data ? (
@@ -95,12 +92,12 @@ export const AIDiagnosisModal: React.FC<AIDiagnosisModalProps> = ({
             <>
               {/* Failure Banner */}
               <div className={`p-4 rounded-2xl border flex items-start justify-between gap-4 ${
-                data.has_failure 
+                isFailure 
                   ? 'bg-rose-950/30 border-rose-500/40 text-rose-200' 
                   : 'bg-emerald-950/20 border-emerald-500/30 text-emerald-200'
               }`}>
                 <div className="flex items-start gap-3">
-                  {data.has_failure ? (
+                  {isFailure ? (
                     <AlertTriangle className="w-6 h-6 text-rose-400 shrink-0 mt-0.5 animate-pulse" />
                   ) : (
                     <ShieldCheck className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" />
@@ -108,129 +105,46 @@ export const AIDiagnosisModal: React.FC<AIDiagnosisModalProps> = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-base font-heading">
-                        {data.has_failure ? (data.failure_reason || 'Machine Crash Detected') : 'Asset Operational (No Active Crash)'}
+                        {data.failure_type}
                       </span>
                       <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase ${
-                        data.has_failure ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        isFailure ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                       }`}>
-                        {data.has_failure ? 'CRITICAL FAULT' : 'HEALTHY'}
-                      </span>
-                    </div>
-                    <p className="text-xs opacity-90 mt-1">
-                      {data.summary}
-                    </p>
-                  </div>
-                </div>
-                {data.timestamp && (
-                  <div className="text-right shrink-0">
-                    <span className="text-[10px] text-gray-400 flex items-center gap-1 justify-end">
-                      <Clock className="w-3 h-3" /> Logged
-                    </span>
-                    <span className="text-xs font-mono font-bold text-gray-300">
-                      {new Date(data.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Exact Crash Telemetry Grid */}
-              {data.telemetry && (
-                <div>
-                  <h3 className="text-xs uppercase tracking-wider text-gray-400 font-bold font-heading mb-3 flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-cyan-400" />
-                    Captured Telemetry Metrics at Time of Incident
-                  </h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                    {/* RPM */}
-                    <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 text-center">
-                      <div className="flex justify-center text-cyan-400 mb-1"><Gauge className="w-4 h-4" /></div>
-                      <span className="text-[10px] text-gray-400 uppercase font-semibold block">Rotational Speed</span>
-                      <span className="text-sm font-bold text-white font-mono mt-0.5 block">
-                        {data.telemetry.rpm !== null ? `${data.telemetry.rpm} RPM` : '--'}
-                      </span>
-                    </div>
-
-                    {/* Torque */}
-                    <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 text-center">
-                      <div className="flex justify-center text-purple-400 mb-1"><Cpu className="w-4 h-4" /></div>
-                      <span className="text-[10px] text-gray-400 uppercase font-semibold block">Torque</span>
-                      <span className={`text-sm font-bold font-mono mt-0.5 block ${
-                        data.telemetry.torque_nm && data.telemetry.torque_nm > 60 ? 'text-rose-400 pulse-red' : 'text-white'
-                      }`}>
-                        {data.telemetry.torque_nm !== null ? `${data.telemetry.torque_nm.toFixed(1)} Nm` : '--'}
-                      </span>
-                    </div>
-
-                    {/* Tool Wear */}
-                    <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 text-center">
-                      <div className="flex justify-center text-amber-400 mb-1"><Layers className="w-4 h-4" /></div>
-                      <span className="text-[10px] text-gray-400 uppercase font-semibold block">Tool Wear</span>
-                      <span className={`text-sm font-bold font-mono mt-0.5 block ${
-                        data.telemetry.tool_wear_min && data.telemetry.tool_wear_min > 200 ? 'text-amber-400' : 'text-white'
-                      }`}>
-                        {data.telemetry.tool_wear_min !== null ? `${data.telemetry.tool_wear_min} min` : '--'}
-                      </span>
-                    </div>
-
-                    {/* Air Temp */}
-                    <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 text-center">
-                      <div className="flex justify-center text-cyan-400 mb-1"><Thermometer className="w-4 h-4" /></div>
-                      <span className="text-[10px] text-gray-400 uppercase font-semibold block">Air Temp</span>
-                      <span className="text-sm font-bold text-white font-mono mt-0.5 block">
-                        {data.telemetry.air_temp_k !== null ? `${data.telemetry.air_temp_k.toFixed(1)} K` : '--'}
-                      </span>
-                    </div>
-
-                    {/* Process Temp */}
-                    <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 text-center">
-                      <div className="flex justify-center text-purple-400 mb-1"><Thermometer className="w-4 h-4" /></div>
-                      <span className="text-[10px] text-gray-400 uppercase font-semibold block">Process Temp</span>
-                      <span className="text-sm font-bold text-white font-mono mt-0.5 block">
-                        {data.telemetry.process_temp_k !== null ? `${data.telemetry.process_temp_k.toFixed(1)} K` : '--'}
+                        {isFailure ? 'CRITICAL FAULT' : 'HEALTHY'}
                       </span>
                     </div>
                   </div>
                 </div>
-              )}
-
-              {/* Root Cause Technical Analysis */}
-              <div className="bg-cyan-950/20 border border-cyan-500/20 p-4.5 rounded-2xl">
-                <h4 className="text-xs uppercase tracking-wider text-cyan-400 font-bold font-heading mb-2 flex items-center gap-1.5">
-                  <Bot className="w-4 h-4" /> Root Cause Analysis
-                </h4>
-                <p className="text-xs text-gray-200 leading-relaxed font-sans">
-                  {data.root_cause}
-                </p>
               </div>
 
-              {/* Diagnostic Assessment */}
-              <div className="bg-white/[0.02] border border-white/10 p-4.5 rounded-2xl">
+              {/* Diagnostic Assessment (Markdown output from AI) */}
+              <div className="bg-white/[0.02] border border-white/10 p-4.5 rounded-2xl whitespace-pre-wrap">
                 <h4 className="text-xs uppercase tracking-wider text-purple-400 font-bold font-heading mb-2">
-                  System Assessment
+                  Multi-Expert System Assessment
                 </h4>
                 <p className="text-xs text-gray-300 leading-relaxed font-sans">
                   {data.diagnosis}
                 </p>
               </div>
 
-              {/* Recommended Maintenance Actions */}
-              {data.recommendations && data.recommendations.length > 0 && (
+              {/* Sources Used */}
+              {data.sources_used && data.sources_used.length > 0 && (
                 <div>
-                  <h4 className="text-xs uppercase tracking-wider text-emerald-400 font-bold font-heading mb-3 flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Recommended Action Protocols
+                  <h4 className="text-xs uppercase tracking-wider text-cyan-400 font-bold font-heading mb-3 flex items-center gap-2">
+                    <BookOpen className="w-4 h-4" />
+                    Knowledge Base Sources Used
                   </h4>
                   <div className="space-y-2.5">
-                    {data.recommendations.map((rec, idx) => (
+                    {data.sources_used.map((source, idx) => (
                       <div 
                         key={idx} 
-                        className="p-3 rounded-xl bg-white/[0.02] border border-emerald-500/20 flex items-start gap-3 hover:bg-white/[0.04] transition-colors"
+                        className="p-3 rounded-xl bg-white/[0.02] border border-cyan-500/20 flex items-start gap-3 hover:bg-white/[0.04] transition-colors"
                       >
-                        <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0 text-xs font-bold mt-0.5">
+                        <div className="w-5 h-5 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center shrink-0 text-xs font-bold mt-0.5">
                           {idx + 1}
                         </div>
-                        <p className="text-xs text-gray-200 leading-relaxed">
-                          {rec}
+                        <p className="text-xs text-gray-200 leading-relaxed font-semibold">
+                          {source}
                         </p>
                       </div>
                     ))}
@@ -245,7 +159,7 @@ export const AIDiagnosisModal: React.FC<AIDiagnosisModalProps> = ({
         <div className="px-6 py-4 border-t border-white/10 bg-white/[0.02] flex items-center justify-between">
           <div className="flex items-center gap-2 text-[11px] text-gray-400">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-            AI Engine Confidence: <span className="text-white font-bold">{((data?.confidence_score || 0.95) * 100).toFixed(0)}%</span>
+            LangGraph Multi-Agent RAG Online
           </div>
 
           <div className="flex items-center gap-3">

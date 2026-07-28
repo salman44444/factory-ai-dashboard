@@ -1,18 +1,43 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.api.deps import get_db_session
-from app.schemas.chat import DiagnoseRequest, DiagnoseResponse
-from app.services.diagnostic_service import run_ai_diagnosis
+from app.schemas.chat import DiagnoseRequest
+from app.services.agent_workflow import build_diagnostic_graph
 
 router = APIRouter()
 
-@router.post("/diagnose", response_model=DiagnoseResponse, status_code=status.HTTP_200_OK, summary="Diagnose machine failure with AI")
-def diagnose_machine(
-    payload: DiagnoseRequest,
+@router.post("/diagnose", status_code=status.HTTP_200_OK, summary="Diagnose machine failure with AI")
+async def diagnose_machine(
+    request: DiagnoseRequest,
     db: Session = Depends(get_db_session)
 ):
-    """
-    Accepts machine_id and queries PostgreSQL for the exact telemetry row that caused the crash,
-    extracting metrics (RPM, Torque, Temps, Tool Wear) and failure type to return AI diagnosis context.
-    """
-    return run_ai_diagnosis(db, machine_id=payload.machine_id)
+    try:
+        # Compile graph with DB session
+        app_graph = build_diagnostic_graph(db)
+        
+        initial_state = {
+            "machine_id": request.machine_id,
+            "user_query": request.user_query,
+            "failure_type": "",
+            "telemetry_window": [],
+            "haas_manual_context": "",
+            "fanuc_alarm_context": "",
+            "cnc_sop_context": "",
+            "final_diagnosis": ""
+        }
+        
+        # Execute the graph
+        final_state = await app_graph.ainvoke(initial_state)
+        
+        return {
+            "machine_id": request.machine_id,
+            "failure_type": final_state["failure_type"],
+            "diagnosis": final_state["final_diagnosis"],
+            "sources_used": [
+                "Haas VF Series Service Manual",
+                "Fanuc Spindle Alarm List",
+                "CNC Lathe Safe Operating Procedure"
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

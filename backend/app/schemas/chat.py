@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict
 
 class DiagnoseRequest(BaseModel):
     machine_id: str
+    user_query: str = "Diagnose the current machine state and give me a fix plan."
 
 class DiagnoseTelemetryDetails(BaseModel):
     id: Optional[int] = None
