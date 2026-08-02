@@ -32,7 +32,7 @@ async def reset_simulator_data(db: Session = Depends(get_db_session)):
     """Stops the simulator (if running), resets index to 0, and deletes all alerts, telemetry logs, and machines."""
     # Stop the running background task safely first
     simulator_instance.stop()
-    simulator_instance.current_index = 0
+    simulator_instance.current_indices = {"CNC-01": 0, "CNC-02": 0, "CNC-03": 0}
     
     # Delete all alerts, telemetry logs, and machines from database
     num_alerts_deleted = db.query(Alert).delete()
