@@ -75,6 +75,9 @@ async def diagnose_machine_direct(
             "haas_manual_context": "",
             "fanuc_alarm_context": "",
             "cnc_sop_context": "",
+            "haas_query": "",
+            "fanuc_query": "",
+            "cnc_sop_query": "",
             "final_diagnosis": ""
         }
         final_state = await app_graph.ainvoke(initial_state)
@@ -92,6 +95,9 @@ async def diagnose_machine_direct(
                 "haas_manual_context": final_state.get("haas_manual_context", ""),
                 "fanuc_alarm_context": final_state.get("fanuc_alarm_context", ""),
                 "cnc_sop_context": final_state.get("cnc_sop_context", ""),
+                "haas_query": final_state.get("haas_query", ""),
+                "fanuc_query": final_state.get("fanuc_query", ""),
+                "cnc_sop_query": final_state.get("cnc_sop_query", ""),
             }
         }
     except Exception as e:

@@ -1,5 +1,6 @@
 import os
 import torch
+import logging
 from typing import List, Dict, Any
 from typing_extensions import TypedDict
 
@@ -10,9 +11,13 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
-# Import your database model
+# Import database models
 from app.models.telemetry import TelemetryLog
 from app.models.alert import Alert
+
+# Set up logging for LangGraph flow
+logger = logging.getLogger("langgraph_workflow")
+logger.setLevel(logging.INFO)
 
 # ==========================================
 # 1. State Definition
@@ -43,15 +48,16 @@ def get_vector_store():
         encode_kwargs={"normalize_embeddings": True}
     )
     return PineconeVectorStore(
-        index_name=os.environ.get("PINECONE_INDEX_NAME", "factory-manuals"),
+        index_name=os.environ.get("PINECONE_INDEX_NAME", "cnc-manuals"),
         embedding=embeddings,
-        pinecone_api_key=os.environ.get("PINECONE_API_KEY")
+        pinecone_api_key=os.environ.get("PINECONE_API_KEY"),
+        namespace=os.environ.get("PINECONE_NAMESPACE", "cnc-books")
     )
 
 # Using Gemini model (reads GOOGLE_API_KEY or GEMINI_API_KEY from environment)
 api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 llm = ChatGoogleGenerativeAI(
-    model="gemini-3.6-flash",
+    model="gemini-3.1-flash-lite",
     temperature=0.2,
     google_api_key=api_key
 )
@@ -62,7 +68,12 @@ llm = ChatGoogleGenerativeAI(
 
 def fetch_sql_context(state: MultiAgentDiagnosticState, db_session: Session) -> Dict[str, Any]:
     """Queries Postgres for active alert and the last 20 rows of telemetry trends."""
+    print("\n" + "="*70, flush=True)
+    print(f"[LANGGRAPH FLOW] ---> ENTERING NODE: fetch_sql_context", flush=True)
+    logger.info("Executing Node: fetch_sql_context")
+    
     machine_id = state["machine_id"]
+    print(f"[LANGGRAPH LOG] Fetching SQL telemetry trend & alerts for Machine ID: '{machine_id}'", flush=True)
     
     # 1. Fetch latest active alert
     latest_alert = (
@@ -72,6 +83,7 @@ def fetch_sql_context(state: MultiAgentDiagnosticState, db_session: Session) -> 
         .first()
     )
     failure_type = latest_alert.reason if latest_alert else "Manual Inspection / Performance Anomaly"
+    print(f"[LANGGRAPH LOG] Detected Failure Type / Alert: '{failure_type}'", flush=True)
 
     # 2. Fetch last 20 telemetry rows (Sliding Window Trend)
     logs = (
@@ -96,6 +108,10 @@ def fetch_sql_context(state: MultiAgentDiagnosticState, db_session: Session) -> 
         }
         for log in logs
     ]
+    print(f"[LANGGRAPH LOG] Fetched {len(telemetry_window)} telemetry trend rows from Postgres.", flush=True)
+
+    print(f"[LANGGRAPH FLOW] <--- EXITING NODE: fetch_sql_context", flush=True)
+    print("="*70 + "\n", flush=True)
 
     return {
         "failure_type": failure_type,
@@ -105,30 +121,43 @@ def fetch_sql_context(state: MultiAgentDiagnosticState, db_session: Session) -> 
 
 def generate_dynamic_query(state: MultiAgentDiagnosticState, manual_context: str) -> str:
     """Uses LLM to dynamically generate an optimized search query based on current failure context."""
+    failure_type = state.get('failure_type', 'Unknown')
+    user_query = state.get('user_query', '')
+    
     prompt = f"""
 You are an AI generating a precise search query for a vector database of technical manuals.
-The current machine failure type / alert is: {state.get('failure_type', 'Unknown')}
-The user's specific inquiry is: "{state.get('user_query', '')}"
+The current machine failure type / alert is: {failure_type}
+The user's specific inquiry is: "{user_query}"
 
 We need to search the "{manual_context}" for relevant context.
 Generate a concise, highly relevant search query (3-8 keywords) tailored to this specific manual.
 Do NOT use quotes, prefixes, or any extra text. Just output the keywords.
 """
-    response = llm.invoke(prompt)
-    
-    if isinstance(response.content, str):
-        query_text = response.content.strip()
-    elif isinstance(response.content, list):
-        query_text = "".join([c.get("text", str(c)) if isinstance(c, dict) else str(c) for c in response.content]).strip()
-    else:
-        query_text = str(response.content).strip()
+    try:
+        response = llm.invoke(prompt)
+        if isinstance(response.content, str):
+            query_text = response.content.strip()
+        elif isinstance(response.content, list):
+            query_text = "".join([c.get("text", str(c)) if isinstance(c, dict) else str(c) for c in response.content]).strip()
+        else:
+            query_text = str(response.content).strip()
+    except Exception as e:
+        logger.error(f"Error generating dynamic query with LLM: {e}")
+        print(f"[LANGGRAPH LOG] LLM Query Generation Error: {e}", flush=True)
+        query_text = f"{failure_type} {user_query}".strip()
         
-    return f"search_query: {query_text}"
+    final_query = f"search_query: {query_text}"
+    return final_query
 
 
 def rag_haas_expert(state: MultiAgentDiagnosticState) -> Dict[str, Any]:
     """Retrieves mechanical service procedures from Haas VF Service Manual."""
+    print("\n" + "="*70, flush=True)
+    print(f"[LANGGRAPH FLOW] ---> ENTERING NODE: rag_haas_expert", flush=True)
+    logger.info("Executing Node: rag_haas_expert")
+    
     query = generate_dynamic_query(state, "Haas VF Service Manual (Mechanical Diagnostics)")
+    print(f"[LANGGRAPH LOG] Generated Haas Search Query: '{query}'", flush=True)
     
     try:
         vector_store = get_vector_store()
@@ -137,19 +166,35 @@ def rag_haas_expert(state: MultiAgentDiagnosticState) -> Dict[str, Any]:
             k=2, 
             filter={"book_id": "vf_service_manual"}
         )
+        print(f"[LANGGRAPH LOG] Retrieved {len(docs)} documents from Pinecone (book_id: 'vf_service_manual')", flush=True)
+        for idx, doc in enumerate(docs):
+            snippet = doc.page_content.replace("search_document: ", "").replace("\n", " ")[:120]
+            print(f"  [Doc {idx+1}] Source: {doc.metadata.get('source_file', 'unknown')} | Snippet: {snippet}...", flush=True)
+            
         context = "\n---\n".join([d.page_content.replace("search_document: ", "") for d in docs])
     except Exception as e:
+        logger.error(f"Error querying Haas manual index: {e}")
+        print(f"[LANGGRAPH ERROR] Could not query Haas manual index: {e}", flush=True)
         context = f"Notice: Could not query Haas manual index ({str(e)})"
         
+    res_context = context if context else "No Haas mechanical manual entries found."
+    print(f"[LANGGRAPH FLOW] <--- EXITING NODE: rag_haas_expert | Context length: {len(res_context)} chars", flush=True)
+    print("="*70 + "\n", flush=True)
+    
     return {
-        "haas_manual_context": context if context else "No Haas mechanical manual entries found.",
+        "haas_manual_context": res_context,
         "haas_query": query
     }
 
 
 def rag_fanuc_expert(state: MultiAgentDiagnosticState) -> Dict[str, Any]:
     """Retrieves electrical/drive alarm codes from Fanuc Spindle Alarm List."""
+    print("\n" + "="*70, flush=True)
+    print(f"[LANGGRAPH FLOW] ---> ENTERING NODE: rag_fanuc_expert", flush=True)
+    logger.info("Executing Node: rag_fanuc_expert")
+    
     query = generate_dynamic_query(state, "Fanuc Spindle Alarm List (Electrical & Drive Codes)")
+    print(f"[LANGGRAPH LOG] Generated Fanuc Search Query: '{query}'", flush=True)
     
     try:
         vector_store = get_vector_store()
@@ -158,19 +203,35 @@ def rag_fanuc_expert(state: MultiAgentDiagnosticState) -> Dict[str, Any]:
             k=2, 
             filter={"book_id": "fanuc_spindle_alarm_list"}
         )
+        print(f"[LANGGRAPH LOG] Retrieved {len(docs)} documents from Pinecone (book_id: 'fanuc_spindle_alarm_list')", flush=True)
+        for idx, doc in enumerate(docs):
+            snippet = doc.page_content.replace("search_document: ", "").replace("\n", " ")[:120]
+            print(f"  [Doc {idx+1}] Source: {doc.metadata.get('source_file', 'unknown')} | Snippet: {snippet}...", flush=True)
+            
         context = "\n---\n".join([d.page_content.replace("search_document: ", "") for d in docs])
     except Exception as e:
+        logger.error(f"Error querying Fanuc alarm list index: {e}")
+        print(f"[LANGGRAPH ERROR] Could not query Fanuc alarm list index: {e}", flush=True)
         context = f"Notice: Could not query Fanuc alarm list index ({str(e)})"
 
+    res_context = context if context else "No Fanuc alarm codes found matching this condition."
+    print(f"[LANGGRAPH FLOW] <--- EXITING NODE: rag_fanuc_expert | Context length: {len(res_context)} chars", flush=True)
+    print("="*70 + "\n", flush=True)
+
     return {
-        "fanuc_alarm_context": context if context else "No Fanuc alarm codes found matching this condition.",
+        "fanuc_alarm_context": res_context,
         "fanuc_query": query
     }
 
 
 def rag_sop_expert(state: MultiAgentDiagnosticState) -> Dict[str, Any]:
     """Retrieves standard operating procedures and safety protocols from CNC Lathe SOP."""
+    print("\n" + "="*70, flush=True)
+    print(f"[LANGGRAPH FLOW] ---> ENTERING NODE: rag_sop_expert", flush=True)
+    logger.info("Executing Node: rag_sop_expert")
+    
     query = generate_dynamic_query(state, "CNC Lathe Factory SOP (Safety & Operating Protocols)")
+    print(f"[LANGGRAPH LOG] Generated CNC SOP Search Query: '{query}'", flush=True)
     
     try:
         vector_store = get_vector_store()
@@ -179,18 +240,41 @@ def rag_sop_expert(state: MultiAgentDiagnosticState) -> Dict[str, Any]:
             k=2, 
             filter={"book_id": "cnc_lathe"}
         )
+        print(f"[LANGGRAPH LOG] Retrieved {len(docs)} documents from Pinecone (book_id: 'cnc_lathe')", flush=True)
+        for idx, doc in enumerate(docs):
+            snippet = doc.page_content.replace("search_document: ", "").replace("\n", " ")[:120]
+            print(f"  [Doc {idx+1}] Source: {doc.metadata.get('source_file', 'unknown')} | Snippet: {snippet}...", flush=True)
+            
         context = "\n---\n".join([d.page_content.replace("search_document: ", "") for d in docs])
     except Exception as e:
+        logger.error(f"Error querying CNC SOP index: {e}")
+        print(f"[LANGGRAPH ERROR] Could not query CNC SOP index: {e}", flush=True)
         context = f"Notice: Could not query CNC SOP index ({str(e)})"
 
+    res_context = context if context else "No specific safety SOP guidelines retrieved."
+    print(f"[LANGGRAPH FLOW] <--- EXITING NODE: rag_sop_expert | Context length: {len(res_context)} chars", flush=True)
+    print("="*70 + "\n", flush=True)
+
     return {
-        "cnc_sop_context": context if context else "No specific safety SOP guidelines retrieved.",
+        "cnc_sop_context": res_context,
         "cnc_sop_query": query
     }
 
 
 def generate_diagnosis(state: MultiAgentDiagnosticState) -> Dict[str, Any]:
     """Synthesizes SQL telemetry trend + knowledge from all 3 books into final answer."""
+    print("\n" + "="*70, flush=True)
+    print(f"[LANGGRAPH FLOW] ---> ENTERING NODE: generate_diagnosis", flush=True)
+    logger.info("Executing Node: generate_diagnosis")
+    
+    print(f"[LANGGRAPH LOG] Synthesizing Diagnosis Input State:", flush=True)
+    print(f"  - Machine ID: {state.get('machine_id')}", flush=True)
+    print(f"  - Failure Type: {state.get('failure_type')}", flush=True)
+    print(f"  - Telemetry Window Count: {len(state.get('telemetry_window', []))}", flush=True)
+    print(f"  - Haas Query: {state.get('haas_query')}", flush=True)
+    print(f"  - Fanuc Query: {state.get('fanuc_query')}", flush=True)
+    print(f"  - SOP Query: {state.get('cnc_sop_query')}", flush=True)
+    
     prompt = f"""
 You are a Lead Reliability & Diagnostics Engineer managing factory assets.
 A machine failure event has occurred on Asset: {state['machine_id']}.
@@ -234,6 +318,10 @@ INSTRUCTIONS:
     else:
         diagnosis_str = str(response.content)
 
+    print(f"[LANGGRAPH LOG] LLM Completion Output Generated (Length: {len(diagnosis_str)} chars)", flush=True)
+    print(f"[LANGGRAPH FLOW] <--- EXITING NODE: generate_diagnosis", flush=True)
+    print("="*70 + "\n", flush=True)
+
     return {"final_diagnosis": diagnosis_str}
 
 # ==========================================
@@ -270,3 +358,4 @@ def build_diagnostic_graph(db_session: Session):
     workflow.add_edge("generate_diagnosis", END)
 
     return workflow.compile()
+

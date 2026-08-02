@@ -11,6 +11,7 @@ async def diagnose_machine(
     request: DiagnoseRequest,
     db: Session = Depends(get_db_session)
 ):
+    print(f"\n[API REQUEST] POST /api/v1/chat/diagnose received for machine_id='{request.machine_id}', query='{request.user_query}'", flush=True)
     try:
         # Compile graph with DB session
         app_graph = build_diagnostic_graph(db)
@@ -29,8 +30,10 @@ async def diagnose_machine(
             "final_diagnosis": ""
         }
         
+        print("[API LOG] Invoking LangGraph diagnostic workflow...", flush=True)
         # Execute the graph
         final_state = await app_graph.ainvoke(initial_state)
+        print("[API LOG] LangGraph diagnostic workflow completed successfully.", flush=True)
         
         return {
             "machine_id": request.machine_id,
@@ -52,4 +55,6 @@ async def diagnose_machine(
             }
         }
     except Exception as e:
+        print(f"[API ERROR] Exception in diagnose_machine endpoint: {e}", flush=True)
         raise HTTPException(status_code=500, detail=str(e))
+
