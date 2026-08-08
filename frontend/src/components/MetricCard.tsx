@@ -21,46 +21,29 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   trendType = 'neutral'
 }) => {
   const colorMap = {
-    cyan: {
-      bg: 'var(--color-cyan-subtle)',
-      border: 'rgba(50, 173, 230, 0.25)',
-      text: 'var(--color-cyan)',
-      iconBg: 'var(--color-cyan-subtle)',
-    },
-    purple: {
-      bg: 'var(--color-purple-subtle)',
-      border: 'rgba(175, 82, 222, 0.25)',
-      text: 'var(--color-purple)',
-      iconBg: 'var(--color-purple-subtle)',
-    },
-    rose: {
-      bg: 'var(--color-rose-subtle)',
-      border: 'rgba(255, 59, 48, 0.25)',
-      text: 'var(--color-rose)',
-      iconBg: 'var(--color-rose-subtle)',
-    },
-    amber: {
-      bg: 'var(--color-amber-subtle)',
-      border: 'rgba(255, 149, 0, 0.25)',
-      text: 'var(--color-amber)',
-      iconBg: 'var(--color-amber-subtle)',
-    },
-    emerald: {
-      bg: 'var(--color-emerald-subtle)',
-      border: 'rgba(52, 199, 89, 0.25)',
-      text: 'var(--color-emerald)',
-      iconBg: 'var(--color-emerald-subtle)',
-    }
+    cyan:    { hex: '#64D2FF', subtle: 'rgba(100,210,255,0.12)' },
+    purple:  { hex: '#BF5AF2', subtle: 'rgba(191,90,242,0.12)'  },
+    rose:    { hex: '#FF453A', subtle: 'rgba(255,69,58,0.12)'   },
+    amber:   { hex: '#FF9F0A', subtle: 'rgba(255,159,10,0.12)'  },
+    emerald: { hex: '#30D158', subtle: 'rgba(48,209,88,0.12)'   },
   };
 
-  const scheme = colorMap[color];
+  const c = colorMap[color];
 
   return (
-    <div 
+    <div
       className="apple-card apple-card-hover p-4 flex flex-col justify-between"
-      style={{ 
-        backgroundColor: scheme.bg, 
-        borderColor: scheme.border 
+      style={{
+        background: 'rgba(255,255,255,0.04)',
+        borderColor: `${c.hex}28`,
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.boxShadow = `0 6px 24px rgba(0,0,0,0.55), 0 0 0 1px ${c.hex}45`;
+        (e.currentTarget as HTMLElement).style.borderColor = `${c.hex}50`;
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.boxShadow = '';
+        (e.currentTarget as HTMLElement).style.borderColor = `${c.hex}28`;
       }}
     >
       <div className="flex justify-between items-start">
@@ -68,25 +51,25 @@ export const MetricCard: React.FC<MetricCardProps> = ({
           <p className="text-[11px] font-semibold uppercase tracking-wider font-heading text-[var(--color-label-secondary)]">
             {title}
           </p>
-          <h3 
+          <h3
             className="text-2xl font-bold mt-1.5 font-heading tracking-tight"
-            style={{ color: scheme.text }}
+            style={{ color: c.hex }}
           >
             {value}
             {unit && <span className="text-xs font-medium ml-1 text-[var(--color-label-tertiary)]">{unit}</span>}
           </h3>
         </div>
-        <div 
+        <div
           className="p-2.5 rounded-[12px] flex items-center justify-center shrink-0"
-          style={{ backgroundColor: scheme.iconBg }}
+          style={{ background: c.subtle, border: `1px solid ${c.hex}30` }}
         >
-          <Icon className="w-5 h-5" style={{ color: scheme.text }} />
+          <Icon className="w-5 h-5" style={{ color: c.hex }} />
         </div>
       </div>
 
       {trend && (
         <div className="mt-3 flex items-center gap-1.5 text-[11px]">
-          <span 
+          <span
             className="font-semibold"
             style={{
               color: trendType === 'up' ? 'var(--color-emerald)' :
@@ -97,7 +80,6 @@ export const MetricCard: React.FC<MetricCardProps> = ({
           >
             {trend}
           </span>
-          <span className="text-[var(--color-label-tertiary)]">since last check</span>
         </div>
       )}
     </div>

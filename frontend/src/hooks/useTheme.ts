@@ -5,7 +5,8 @@ export type Theme = 'light' | 'dark' | 'system';
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => {
     const saved = localStorage.getItem('theme') as Theme | null;
-    return saved && ['light', 'dark', 'system'].includes(saved) ? saved : 'system';
+    // Default to 'dark' to match the landing page aesthetic
+    return saved && ['light', 'dark', 'system'].includes(saved) ? saved : 'dark';
   });
 
   const getSystemTheme = useCallback((): 'light' | 'dark' => {

@@ -11,9 +11,6 @@ import {
   Layers,
   Wrench,
   Sparkles,
-  Sun,
-  Moon,
-  Monitor,
   Download,
   ChevronLeft
 } from 'lucide-react';
@@ -35,7 +32,9 @@ interface AppProps {
 
 export default function App({ onBack }: AppProps) {
   const { isConnected, telemetryLogs, alerts, setAlerts } = useWebSocket();
-  const { theme, setTheme } = useTheme();
+  // Theme is always dark to match landing page — hook kept for body class management
+  useTheme();
+
   
   const [machines, setMachines] = useState<Machine[]>([]);
   const [selectedMachineId, setSelectedMachineId] = useState<string>('');
@@ -299,10 +298,17 @@ export default function App({ onBack }: AppProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-canvas)] text-[var(--color-label-primary)] font-sans flex flex-col antialiased">
+    <div className="min-h-screen bg-[var(--color-bg-canvas)] text-[var(--color-label-primary)] font-sans flex flex-col antialiased" style={{ position: 'relative' }}>
+      {/* Background glow orbs matching landing page */}
+      <div className="dash-glow-orb dash-glow-blue" />
+      <div className="dash-glow-orb dash-glow-purple" />
+      {/* Subtle grid texture */}
+      <div style={{ position: 'fixed', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.015) 1px,transparent 1px)', backgroundSize: '60px 60px', pointerEvents: 'none', zIndex: 0 }} />
+
       {/* Apple HIG Translucent Header Toolbar */}
-      <header className="apple-glass-header py-3.5 px-6 sticky top-0 z-40">
+      <header className="apple-glass-header py-3.5 px-6 sticky top-0 z-40" style={{ position: 'relative', zIndex: 40 }}>
         <div className="max-w-[1600px] mx-auto flex items-center justify-between">
+
           <div className="flex items-center gap-3">
             {/* Home breadcrumb button */}
             {onBack && (
@@ -315,11 +321,11 @@ export default function App({ onBack }: AppProps) {
                 <span className="hidden sm:inline">Home</span>
               </button>
             )}
-            <div className="bg-[var(--color-accent)] p-2.5 rounded-[12px] text-white shadow-sm flex items-center justify-center">
-              <Activity className="w-5 h-5" />
+            <div style={{ background: 'linear-gradient(135deg, #0A84FF 0%, #5E5CE6 100%)', borderRadius: '12px', padding: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 12px rgba(10,132,255,0.4)' }}>
+              <Activity className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold font-heading text-[var(--color-label-primary)] tracking-tight leading-none">
+              <h1 className="text-lg font-bold font-heading tracking-tight leading-none" style={{ background: 'linear-gradient(135deg,#fff 0%,#64D2FF 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
                 AeroForge AI
               </h1>
               <p className="text-[var(--color-label-secondary)] text-[10px] uppercase tracking-wider font-semibold mt-1">
@@ -353,39 +359,17 @@ export default function App({ onBack }: AppProps) {
               <span className="hidden sm:inline">Export CSV</span>
             </button>
 
-            {/* Apple HIG Theme Switcher */}
-            <div className="apple-segmented-control">
-              <button
-                onClick={() => setTheme('light')}
-                className={`apple-segmented-item flex items-center gap-1 ${theme === 'light' ? 'active' : ''}`}
-                title="Light Theme"
-              >
-                <Sun className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Light</span>
-              </button>
-              <button
-                onClick={() => setTheme('dark')}
-                className={`apple-segmented-item flex items-center gap-1 ${theme === 'dark' ? 'active' : ''}`}
-                title="Dark Theme"
-              >
-                <Moon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Dark</span>
-              </button>
-              <button
-                onClick={() => setTheme('system')}
-                className={`apple-segmented-item flex items-center gap-1 ${theme === 'system' ? 'active' : ''}`}
-                title="Match System Theme"
-              >
-                <Monitor className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Auto</span>
-              </button>
+            {/* Dark-mode badge */}
+            <div className="px-3 py-1.5 rounded-xl border border-[var(--color-border-subtle)] text-xs font-semibold text-[var(--color-label-secondary)] flex items-center gap-1.5" style={{ background: 'rgba(255,255,255,0.05)' }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#64D2FF', display: 'inline-block' }} />
+              <span className="hidden sm:inline">Dark Mode</span>
             </div>
           </div>
         </div>
       </header>
 
       {/* Main Container */}
-      <main className="max-w-[1600px] mx-auto px-6 py-6 flex-1 w-full grid grid-cols-12 gap-6">
+      <main className="max-w-[1600px] mx-auto px-6 py-6 flex-1 w-full grid grid-cols-12 gap-6" style={{ position: 'relative', zIndex: 1 }}>
         
         {/* KPI Cards Strip */}
         <section className="col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -648,8 +632,8 @@ export default function App({ onBack }: AppProps) {
       </main>
 
       {/* Footer info */}
-      <footer className="py-4 border-t border-[var(--color-separator)] text-center text-xs text-[var(--color-label-secondary)] bg-[var(--color-bg-surface)] mt-6">
-        <p>© 2026 AeroForge AI Monitoring. Real-time telemetry via WebSockets.</p>
+      <footer className="py-4 border-t border-[var(--color-separator)] text-center text-xs text-[var(--color-label-secondary)] mt-6" style={{ position: 'relative', zIndex: 1, background: 'rgba(255,255,255,0.02)' }}>
+        <p>© 2026 AeroForge AI · Real-time factory telemetry via WebSockets · LangGraph RAG Diagnosis</p>
       </footer>
 
       {/* AI Diagnosis Modal */}
