@@ -22,7 +22,7 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ alerts, onResolve }) =
             </div>
             <div>
               <h4 className="text-[var(--color-rose)] font-bold font-heading text-xs uppercase tracking-wider">
-                CRITICAL SYSTEM ALERT
+                MACHINE FAILURE DETECTED
               </h4>
               <p className="text-[var(--color-label-primary)] text-xs mt-0.5 font-medium">
                 Machine {criticalAlert.machine_id}: {criticalAlert.reason}
@@ -33,7 +33,7 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ alerts, onResolve }) =
             onClick={() => onResolve(criticalAlert.id)}
             className="px-3.5 py-1.5 bg-[var(--color-rose)] hover:opacity-90 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer"
           >
-            Acknowledge
+            Mark Reviewed
           </button>
         </div>
       )}
@@ -43,10 +43,10 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ alerts, onResolve }) =
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-sm font-bold font-heading text-[var(--color-label-primary)] flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-[var(--color-amber)]" />
-            Predictive Maintenance Warnings
+            Maintenance Alerts
           </h3>
           <span className="bg-[var(--color-amber-subtle)] text-[var(--color-amber)] px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-[var(--color-amber)]">
-            {unresolvedAlerts.length} Active
+            {unresolvedAlerts.length} Open
           </span>
         </div>
 
@@ -54,7 +54,7 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ alerts, onResolve }) =
           {alerts.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-[var(--color-label-tertiary)] text-xs py-8">
               <ShieldCheck className="w-8 h-8 text-[var(--color-emerald)] opacity-60 mb-2" />
-              All systems nominal. No alerts.
+              No machine warnings or failures yet.
             </div>
           ) : (
             alerts.map((alert) => {
@@ -90,14 +90,14 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ alerts, onResolve }) =
                     <button
                       onClick={() => onResolve(alert.id)}
                       className="p-1.5 bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-control)] rounded-lg text-[var(--color-label-primary)] transition-all cursor-pointer border border-[var(--color-border-subtle)]"
-                      title="Resolve Alert"
+                      title="Mark alert as reviewed"
                     >
                       <CheckCircle className="w-4 h-4 text-[var(--color-emerald)]" />
                     </button>
                   ) : (
                     <span className="text-[10px] text-[var(--color-emerald)] font-semibold flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5" />
-                      Resolved
+                      Reviewed
                     </span>
                   )}
                 </div>

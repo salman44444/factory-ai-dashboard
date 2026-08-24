@@ -209,14 +209,14 @@ export const AIDiagnosisModal: React.FC<AIDiagnosisModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-bold font-heading text-[var(--color-label-primary)] tracking-wide">
-                  AI Crash Diagnostic Engine
+                  AI Maintenance Diagnosis
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[var(--color-cyan-subtle)] border border-[var(--color-cyan)] text-[var(--color-cyan)]">
-                  LangGraph RAG Agent
+                  Manual-Grounded RAG
                 </span>
               </div>
               <p className="text-[var(--color-label-secondary)] text-xs mt-0.5">
-                {data?.machine_id ? `Target Asset: ${data.machine_id}` : 'Analyzing machine telemetry...'}
+                {data?.machine_id ? `Machine: ${data.machine_id}` : 'Analyzing machine telemetry...'}
               </p>
             </div>
           </div>
@@ -230,14 +230,14 @@ export const AIDiagnosisModal: React.FC<AIDiagnosisModalProps> = ({
                   className={`apple-segmented-item flex items-center gap-1.5 ${activeTab === 'user' ? 'active' : ''}`}
                 >
                   <Bot className="w-3.5 h-3.5" />
-                  Assessment
+                  Diagnosis
                 </button>
                 <button
                   onClick={() => setActiveTab('dev')}
                   className={`apple-segmented-item flex items-center gap-1.5 ${activeTab === 'dev' ? 'active' : ''}`}
                 >
                   <Code className="w-3.5 h-3.5" />
-                  Agent Flow Inspector
+                  How the AI Reached This
                 </button>
               </div>
             )}
@@ -262,15 +262,15 @@ export const AIDiagnosisModal: React.FC<AIDiagnosisModalProps> = ({
                 </div>
               </div>
               <div className="text-center">
-                <p className="text-[var(--color-label-primary)] font-semibold font-heading text-base">Querying Parallel RAG Experts...</p>
-                <p className="text-xs text-[var(--color-label-secondary)] mt-1">Executing LangGraph Fan-Out to Haas, Fanuc & SOP retrievers.</p>
+                <p className="text-[var(--color-label-primary)] font-semibold font-heading text-base">Comparing telemetry with CNC manuals...</p>
+                <p className="text-xs text-[var(--color-label-secondary)] mt-1">Searching the Haas, Fanuc, and operating-procedure indexes in parallel.</p>
               </div>
             </div>
           ) : !data ? (
             <div className="py-12 text-center text-[var(--color-label-secondary)]">
               <AlertTriangle className="w-12 h-12 text-[var(--color-amber)] mx-auto mb-3 opacity-80" />
               <p className="text-base font-semibold text-[var(--color-label-primary)]">No Diagnostic Context Available</p>
-              <p className="text-xs mt-1">Select a machine and ensure telemetry simulator is active.</p>
+              <p className="text-xs mt-1">Select a machine with telemetry history before running a diagnosis.</p>
             </div>
           ) : activeTab === 'user' ? (
             /* USER DIAGNOSIS VIEW */
@@ -320,7 +320,7 @@ export const AIDiagnosisModal: React.FC<AIDiagnosisModalProps> = ({
                 /* Diagnostic Assessment (Formatted Markdown output from AI) */
                 <div className="bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] p-5 rounded-2xl shadow-sm space-y-1">
                   <h4 className="text-xs uppercase tracking-wider text-[var(--color-purple)] font-bold font-heading mb-3">
-                    Multi-Expert System Assessment
+                    Diagnosis and Recommended Actions
                   </h4>
                   {formatMarkdown(data.diagnosis)}
                 </div>
@@ -331,7 +331,7 @@ export const AIDiagnosisModal: React.FC<AIDiagnosisModalProps> = ({
                 <div>
                   <h4 className="text-xs uppercase tracking-wider text-[var(--color-cyan)] font-bold font-heading mb-3 flex items-center gap-2">
                     <BookOpen className="w-4 h-4" />
-                    Knowledge Base Sources Used
+                    Manuals Consulted
                   </h4>
                   <div className="space-y-2.5">
                     {data.sources_used.map((source, idx) => (
@@ -358,7 +358,7 @@ export const AIDiagnosisModal: React.FC<AIDiagnosisModalProps> = ({
               <div className="p-4 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-sm">
                 <h4 className="text-xs uppercase tracking-wider text-[var(--color-purple)] font-bold font-heading mb-3 flex items-center gap-2">
                   <GitFork className="w-4 h-4 text-[var(--color-purple)]" />
-                  LangGraph Parallel Fan-Out / Fan-In Topology
+                  LangGraph Retrieval and Synthesis Flow
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-2 text-center text-xs">
@@ -403,7 +403,7 @@ export const AIDiagnosisModal: React.FC<AIDiagnosisModalProps> = ({
               <div className="space-y-3">
                 <h4 className="text-xs uppercase tracking-wider text-[var(--color-cyan)] font-bold font-heading flex items-center gap-2">
                   <Terminal className="w-4 h-4" />
-                  Node Execution Payloads & Retrieved Contexts
+                  Queries, Telemetry, and Retrieved Manual Context
                 </h4>
 
                 {/* Node 1: fetch_sql_context */}

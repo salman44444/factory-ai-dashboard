@@ -1,10 +1,13 @@
 import os
 import torch
 import logging
+from functools import lru_cache
+from threading import Lock
 from typing import List, Dict, Any
 from typing_extensions import TypedDict
 
 from langgraph.graph import StateGraph, START, END
+from langchain_core.embeddings import Embeddings
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -40,19 +43,58 @@ class MultiAgentDiagnosticState(TypedDict):
     # Final output
     final_diagnosis: str
 
-def get_vector_store():
+EMBEDDING_MODEL_NAME = "nomic-ai/nomic-embed-text-v1.5"
+EMBEDDING_WARMUP_QUERY = "search_query: CNC machine maintenance diagnostics"
+
+
+class SynchronizedEmbeddings(Embeddings):
+    """Serialize access to one shared local model while leaving I/O parallel."""
+
+    def __init__(self, delegate: HuggingFaceEmbeddings):
+        self._delegate = delegate
+        self._lock = Lock()
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        with self._lock:
+            return self._delegate.embed_documents(texts)
+
+    def embed_query(self, text: str) -> List[float]:
+        with self._lock:
+            return self._delegate.embed_query(text)
+
+
+@lru_cache(maxsize=1)
+def get_embeddings() -> Embeddings:
+    """Create one process-wide embedding model and reuse it for every retriever."""
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    embeddings = HuggingFaceEmbeddings(
-        model_name="nomic-ai/nomic-embed-text-v1.5",
-        model_kwargs={"device": device, "trust_remote_code": True},
-        encode_kwargs={"normalize_embeddings": True}
+    logger.info("Loading shared embedding model '%s' on %s", EMBEDDING_MODEL_NAME, device)
+    return SynchronizedEmbeddings(
+        HuggingFaceEmbeddings(
+            model_name=EMBEDDING_MODEL_NAME,
+            model_kwargs={"device": device, "trust_remote_code": True},
+            encode_kwargs={"normalize_embeddings": True}
+        )
     )
+
+
+@lru_cache(maxsize=1)
+def get_vector_store() -> PineconeVectorStore:
+    """Create one process-wide Pinecone store backed by the shared embeddings."""
     return PineconeVectorStore(
         index_name=os.environ.get("PINECONE_INDEX_NAME", "cnc-manuals"),
-        embedding=embeddings,
+        embedding=get_embeddings(),
         pinecone_api_key=os.environ.get("PINECONE_API_KEY"),
         namespace=os.environ.get("PINECONE_NAMESPACE", "cnc-books")
     )
+
+
+def initialize_retrieval_service() -> None:
+    """Load and warm the shared retrieval dependencies during API startup."""
+    logger.info("Initializing shared retrieval service")
+    embeddings = get_embeddings()
+    embeddings.embed_query(EMBEDDING_WARMUP_QUERY)
+    get_vector_store()
+    logger.info("Shared retrieval service is ready")
 
 # Using Gemini model (reads GOOGLE_API_KEY or GEMINI_API_KEY from environment)
 api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
@@ -160,8 +202,7 @@ def rag_haas_expert(state: MultiAgentDiagnosticState) -> Dict[str, Any]:
     print(f"[LANGGRAPH LOG] Generated Haas Search Query: '{query}'", flush=True)
     
     try:
-        vector_store = get_vector_store()
-        docs = vector_store.similarity_search(
+        docs = get_vector_store().similarity_search(
             query, 
             k=2, 
             filter={"book_id": "vf_service_manual"}
@@ -197,8 +238,7 @@ def rag_fanuc_expert(state: MultiAgentDiagnosticState) -> Dict[str, Any]:
     print(f"[LANGGRAPH LOG] Generated Fanuc Search Query: '{query}'", flush=True)
     
     try:
-        vector_store = get_vector_store()
-        docs = vector_store.similarity_search(
+        docs = get_vector_store().similarity_search(
             query, 
             k=2, 
             filter={"book_id": "fanuc_spindle_alarm_list"}
@@ -234,8 +274,7 @@ def rag_sop_expert(state: MultiAgentDiagnosticState) -> Dict[str, Any]:
     print(f"[LANGGRAPH LOG] Generated CNC SOP Search Query: '{query}'", flush=True)
     
     try:
-        vector_store = get_vector_store()
-        docs = vector_store.similarity_search(
+        docs = get_vector_store().similarity_search(
             query, 
             k=2, 
             filter={"book_id": "cnc_lathe"}
@@ -358,4 +397,3 @@ def build_diagnostic_graph(db_session: Session):
     workflow.add_edge("generate_diagnosis", END)
 
     return workflow.compile()
-

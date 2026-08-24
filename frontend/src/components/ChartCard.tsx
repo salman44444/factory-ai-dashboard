@@ -52,7 +52,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({ data, machineId, loading =
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
         <div>
           <h3 className="text-base font-bold font-heading text-[var(--color-label-primary)]">
-            Performance Diagnostics
+            Sensor Trend
           </h3>
           <p className="text-[var(--color-label-secondary)] text-xs mt-0.5">
             Real-time RPM and Torque trends for Machine {machineId || 'Selected'}

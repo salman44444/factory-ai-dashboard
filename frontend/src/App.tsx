@@ -326,10 +326,10 @@ export default function App({ onBack }: AppProps) {
             </div>
             <div>
               <h1 className="text-lg font-bold font-heading tracking-tight leading-none" style={{ background: 'linear-gradient(135deg,#fff 0%,#64D2FF 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-                AeroForge AI
+                CNC Failure Lab
               </h1>
               <p className="text-[var(--color-label-secondary)] text-[10px] uppercase tracking-wider font-semibold mt-1">
-                Factory Monitoring & Anomaly Center
+                Predictive Maintenance Demo
               </p>
             </div>
           </div>
@@ -347,7 +347,7 @@ export default function App({ onBack }: AppProps) {
                 : 'bg-[var(--color-amber-subtle)] border-[var(--color-amber)] text-[var(--color-amber)]'
             }`}>
               <Radio className={`w-3.5 h-3.5 ${isConnected ? 'pulse-green' : 'pulse-yellow'}`} />
-              {isConnected ? 'Telemetry Online' : 'Connecting Stream...'}
+              {isConnected ? 'Live Stream Connected' : 'Connecting to Stream...'}
             </div>
 
             {/* CSV Export Action Button */}
@@ -359,10 +359,10 @@ export default function App({ onBack }: AppProps) {
               <span className="hidden sm:inline">Export CSV</span>
             </button>
 
-            {/* Dark-mode badge */}
+            {/* Dataset badge */}
             <div className="px-3 py-1.5 rounded-xl border border-[var(--color-border-subtle)] text-xs font-semibold text-[var(--color-label-secondary)] flex items-center gap-1.5" style={{ background: 'rgba(255,255,255,0.05)' }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#64D2FF', display: 'inline-block' }} />
-              <span className="hidden sm:inline">Dark Mode</span>
+              <span className="hidden sm:inline">Synthetic AI4I Data</span>
             </div>
           </div>
         </div>
@@ -374,41 +374,41 @@ export default function App({ onBack }: AppProps) {
         {/* KPI Cards Strip */}
         <section className="col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <MetricCard 
-            title="Total Assets" 
+            title="Simulated Machines"
             value={totals.total} 
             icon={Server} 
             color="purple" 
           />
           <MetricCard 
-            title="Active Operational" 
+            title="Running Now"
             value={totals.running} 
             icon={Activity} 
             color="emerald" 
-            trend={`${((totals.running / (totals.total || 1)) * 100).toFixed(0)}% Utilized`}
+            trend={`${totals.running} of ${totals.total} streaming`}
             trendType="up"
           />
           <MetricCard 
-            title="Warnings Raised" 
+            title="Machines Warning"
             value={totals.warning} 
             icon={AlertTriangle} 
             color="amber" 
-            trend={`${totals.warning} minor risk`}
+            trend={`${totals.warning} above threshold`}
             trendType={totals.warning > 0 ? 'danger' : 'neutral'}
           />
           <MetricCard 
-            title="Failure Incidents" 
+            title="Failed Machines"
             value={totals.fault} 
             icon={AlertTriangle} 
             color="rose" 
-            trend={totals.fault > 0 ? 'CRITICAL SHUTDOWN' : 'All clear'}
+            trend={totals.fault > 0 ? 'Stopped at failure row' : 'No failures reached'}
             trendType={totals.fault > 0 ? 'danger' : 'neutral'}
           />
           <MetricCard 
-            title="Active Incidents" 
+            title="Open Alerts"
             value={totals.activeAlerts} 
             icon={Wrench} 
             color="cyan" 
-            trend="Unresolved alerts"
+            trend="Awaiting review"
             trendType={totals.activeAlerts > 0 ? 'danger' : 'neutral'}
           />
         </section>
@@ -421,7 +421,7 @@ export default function App({ onBack }: AppProps) {
               <Search className="w-4 h-4 text-[var(--color-label-tertiary)]" />
               <input 
                 type="text" 
-                placeholder="Search assets (e.g. M14890)..." 
+                placeholder="Search machine ID..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="bg-transparent text-xs w-full outline-none text-[var(--color-label-primary)] placeholder-[var(--color-label-tertiary)]"
@@ -440,7 +440,7 @@ export default function App({ onBack }: AppProps) {
                       : 'bg-[var(--color-bg-control)] text-[var(--color-label-secondary)] hover:text-[var(--color-label-primary)]'
                   }`}
                 >
-                  {grade === 'ALL' ? 'All' : `Grade ${grade}`}
+                  {grade === 'ALL' ? 'All' : grade === 'L' ? 'Low (L)' : grade === 'M' ? 'Medium (M)' : 'High (H)'}
                 </button>
               ))}
             </div>
@@ -448,7 +448,7 @@ export default function App({ onBack }: AppProps) {
             {/* Machinery List */}
             <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
               <p className="text-[var(--color-label-secondary)] text-[10px] uppercase tracking-wider font-semibold mb-2 px-1">
-                Factory Machines ({filteredMachines.length})
+                Simulated CNC Machines ({filteredMachines.length})
               </p>
               {filteredMachines.length === 0 ? (
                 <div className="text-center py-8 text-[var(--color-label-tertiary)] text-xs font-medium">
@@ -554,7 +554,7 @@ export default function App({ onBack }: AppProps) {
           <div className="apple-card p-5 flex flex-col flex-1">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold font-heading text-[var(--color-label-primary)]">
-                Diagnostics Context
+                Selected Machine
               </h3>
               {selectedMachineId && (
                 <button
@@ -562,30 +562,30 @@ export default function App({ onBack }: AppProps) {
                   className="px-3.5 py-1.5 rounded-xl bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white text-xs font-bold shadow-sm flex items-center gap-2 transition-all cursor-pointer active:scale-95"
                 >
                   <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-                  Diagnose with AI
+                  Diagnose from Manuals
                 </button>
               )}
             </div>
             {selectedMachine ? (
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
                 <div className="bg-[var(--color-bg-control)] p-3 rounded-xl border border-[var(--color-border-subtle)]">
-                  <span className="text-[var(--color-label-secondary)] block text-[10px] uppercase font-semibold">System Name</span>
+                  <span className="text-[var(--color-label-secondary)] block text-[10px] uppercase font-semibold">Machine</span>
                   <span className="font-bold text-[var(--color-label-primary)] block mt-0.5">{selectedMachine.name}</span>
                 </div>
                 <div className="bg-[var(--color-bg-control)] p-3 rounded-xl border border-[var(--color-border-subtle)]">
-                  <span className="text-[var(--color-label-secondary)] block text-[10px] uppercase font-semibold">Current Product</span>
+                  <span className="text-[var(--color-label-secondary)] block text-[10px] uppercase font-semibold">Dataset Product ID</span>
                   <span className="font-bold text-[var(--color-purple)] block mt-0.5 font-mono">{currentMetrics?.product_id || 'None'}</span>
                 </div>
                 <div className="bg-[var(--color-bg-control)] p-3 rounded-xl border border-[var(--color-border-subtle)]">
-                  <span className="text-[var(--color-label-secondary)] block text-[10px] uppercase font-semibold">Class Category</span>
+                  <span className="text-[var(--color-label-secondary)] block text-[10px] uppercase font-semibold">Product Quality</span>
                   <span className="font-bold text-[var(--color-cyan)] block mt-0.5">
-                    {selectedMachine.type === 'L' ? 'Low Grade (L)' : 
-                     selectedMachine.type === 'M' ? 'Medium Grade (M)' : 
-                     'High Grade (H)'}
+                    {selectedMachine.type === 'L' ? 'Low (L)' :
+                     selectedMachine.type === 'M' ? 'Medium (M)' :
+                     'High (H)'}
                   </span>
                 </div>
                 <div className="bg-[var(--color-bg-control)] p-3 rounded-xl border border-[var(--color-border-subtle)]">
-                  <span className="text-[var(--color-label-secondary)] block text-[10px] uppercase font-semibold">Operating Status</span>
+                  <span className="text-[var(--color-label-secondary)] block text-[10px] uppercase font-semibold">Stream Status</span>
                   <span className={`font-bold block mt-0.5 ${
                     selectedMachine.status === 'RUNNING' ? 'text-[var(--color-emerald)]' :
                     selectedMachine.status === 'WARNING' ? 'text-[var(--color-amber)]' :
@@ -595,7 +595,7 @@ export default function App({ onBack }: AppProps) {
                   </span>
                 </div>
                 <div className="bg-[var(--color-bg-control)] p-3 rounded-xl border border-[var(--color-border-subtle)]">
-                  <span className="text-[var(--color-label-secondary)] block text-[10px] uppercase font-semibold">Anomaly Trigger</span>
+                  <span className="text-[var(--color-label-secondary)] block text-[10px] uppercase font-semibold">Failure Label</span>
                   <span className="font-bold block mt-0.5 text-[var(--color-label-primary)]">
                     {currentMetrics?.is_failure ? (
                       <span className="text-[var(--color-rose)] pulse-red">{currentMetrics.failure_reason || 'Failure'}</span>
@@ -604,7 +604,7 @@ export default function App({ onBack }: AppProps) {
                 </div>
               </div>
             ) : (
-              <p className="text-[var(--color-label-secondary)] text-xs">Select an asset from the checklist to see diagnostics data.</p>
+              <p className="text-[var(--color-label-secondary)] text-xs">Select a machine to see its telemetry and failure details.</p>
             )}
           </div>
 
@@ -633,7 +633,7 @@ export default function App({ onBack }: AppProps) {
 
       {/* Footer info */}
       <footer className="py-4 border-t border-[var(--color-separator)] text-center text-xs text-[var(--color-label-secondary)] mt-6" style={{ position: 'relative', zIndex: 1, background: 'rgba(255,255,255,0.02)' }}>
-        <p>© 2026 AeroForge AI · Real-time factory telemetry via WebSockets · LangGraph RAG Diagnosis</p>
+        <p>© 2026 CNC Failure Lab · Synthetic AI4I telemetry · Manual-grounded LangGraph diagnosis</p>
       </footer>
 
       {/* AI Diagnosis Modal */}

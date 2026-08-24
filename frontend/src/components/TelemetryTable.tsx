@@ -51,7 +51,7 @@ export const TelemetryTable: React.FC<TelemetryTableProps> = ({
           <div>
             <h3 className="text-sm font-bold font-heading text-[var(--color-label-primary)] flex items-center gap-2">
               <History className="w-4 h-4 text-[var(--color-cyan)]" />
-              Telemetry & Incident Logs
+              Telemetry History
             </h3>
             <p className="text-[var(--color-label-secondary)] text-[11px] mt-0.5">
               Detailed sensor metrics timeline
@@ -88,7 +88,7 @@ export const TelemetryTable: React.FC<TelemetryTableProps> = ({
                 title={!hasFailure ? "No failures logged for this machine yet" : "Show pre-failure diagnostics"}
               >
                 <ShieldAlert className="w-3 h-3" />
-                Pre-Failure Context
+                Final Readings Before Failure
               </button>
             </div>
           </div>

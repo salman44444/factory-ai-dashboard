@@ -57,7 +57,13 @@ from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.api.deps import get_db_session
 from app.schemas.chat import DiagnoseRequest
-from app.services.agent_workflow import build_diagnostic_graph
+from app.services.agent_workflow import build_diagnostic_graph, initialize_retrieval_service
+
+
+@app.on_event("startup")
+def initialize_ai_retrieval() -> None:
+    """Load the shared embedding model once when the Docker API process starts."""
+    initialize_retrieval_service()
 
 @app.post("/api/chat/diagnose", tags=["Chat"], summary="Diagnose machine failure with AI (Direct path)")
 async def diagnose_machine_direct(
@@ -125,4 +131,3 @@ def read_root():
         "redoc_url": settings.REDOC_URL,
         "api_v1": settings.API_V1_STR,
     }
-

@@ -64,11 +64,11 @@ export const SimulatorControl: React.FC<SimulatorControlProps> = ({ onStatusChan
 
   const handleBulkLoad = async () => {
     setLoading(true);
-    setDbStatus('Bulk loading 10,000 logs (may take a few seconds)...');
+    setDbStatus('Loading 9,000 simulated telemetry rows...');
     try {
       const res = await fetch('/api/v1/simulator/load', { method: 'POST' });
       await res.json();
-      setDbStatus('Preloaded all CSV records successfully.');
+      setDbStatus('Loaded all three machine dataset slices.');
       fetchStatus();
     } catch (e) {
       console.error('Error bulk loading:', e);
@@ -83,10 +83,10 @@ export const SimulatorControl: React.FC<SimulatorControlProps> = ({ onStatusChan
       <div>
         <h3 className="text-sm font-bold font-heading text-[var(--color-label-primary)] flex items-center gap-2">
           <Database className="w-4 h-4 text-[var(--color-cyan)]" />
-          Simulator Operations
+          Dataset Playback
         </h3>
         <p className="text-[var(--color-label-secondary)] text-xs mt-0.5">
-          Control the industrial machine telemetry streaming loop
+          Replay three AI4I dataset slices at one row per second
         </p>
       </div>
 
@@ -95,7 +95,7 @@ export const SimulatorControl: React.FC<SimulatorControlProps> = ({ onStatusChan
           <div className="flex items-center gap-2">
             <span className={`w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-[var(--color-emerald)] pulse-green' : 'bg-[var(--color-label-tertiary)]'}`}></span>
             <span className="text-xs font-semibold text-[var(--color-label-primary)]">
-              Status: {isRunning ? 'Active Stream' : 'Paused / Stopped'}
+              Status: {isRunning ? 'Playback running' : 'Playback stopped'}
             </span>
           </div>
           
@@ -113,12 +113,12 @@ export const SimulatorControl: React.FC<SimulatorControlProps> = ({ onStatusChan
             ) : isRunning ? (
               <>
                 <Pause className="w-3.5 h-3.5 fill-current" />
-                Pause
+                Pause Playback
               </>
             ) : (
               <>
                 <Play className="w-3.5 h-3.5 fill-current" />
-                Resume
+                Start / Resume
               </>
             )}
           </button>
@@ -131,7 +131,7 @@ export const SimulatorControl: React.FC<SimulatorControlProps> = ({ onStatusChan
             className="py-2.5 bg-[var(--color-bg-control)] hover:bg-[var(--color-bg-surface-elevated)] disabled:opacity-50 text-[var(--color-label-primary)] rounded-xl text-xs font-semibold border border-[var(--color-border-subtle)] flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
           >
             <Database className="w-3.5 h-3.5 text-[var(--color-cyan)]" />
-            Bulk Load
+            Load Full History
           </button>
           
           <button
@@ -140,7 +140,7 @@ export const SimulatorControl: React.FC<SimulatorControlProps> = ({ onStatusChan
             className="py-2.5 bg-[var(--color-rose-subtle)] hover:bg-[var(--color-rose-subtle)] border border-[var(--color-rose)] text-[var(--color-rose)] rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Reset Data
+            Reset Demo
           </button>
         </div>
       </div>
